@@ -64,6 +64,9 @@ sub logmsg {
 
 sub sendto_client {
   my ($client, $msg) = @_;
+
+  $msg .= "\r\n";
+
   my $frame = Protocol::WebSocket::Frame->new($msg);
   my $buffer = $frame->to_string;
   while(length($buffer) > 0) {
@@ -76,7 +79,7 @@ sub sendto_all_clients {
   my $msg = shift;
 
   while (my ($client, $chash) = each %clients) {
-    sendto_client($chash->{'client'}, $msg . "\r\n");
+    sendto_client($chash->{'client'}, $msg);
   }
 }
 
@@ -128,6 +131,31 @@ sub parse_msg {
   if (defined ($message) && $message =~ /^:/) {
     push (@params, substr($message, 1));
   }
+
+  handle_command($client, uc($command), $source, @params);
+}
+
+sub check_registered {
+  my $client = shift;
+  my $chash = $clients{$client};
+
+  if (defined($chash->{'user'}) && defined($chash->{'nick'})) {
+    client_connected($client);
+  }
+}
+
+sub handle_command {
+  my ($client, $command, $source, @params) = @_;
+
+  my $chash = $clients{$client};
+
+  if      ($command eq "USER") {
+    $chash->{'user'} = $params[0];
+    check_registered($client);
+  } elsif ($command eq "NICK") {
+    $chash->{'nick'} = $params[0];
+    check_registered($client);
+  }
 }
 
 sub client_datur {
@@ -151,7 +179,6 @@ sub client_datur {
     }
     if ($hs->is_done) {
       $client->syswrite($hs->to_string);
-      logmsg('Client Connected!');
     }
     return;
   }
@@ -162,9 +189,33 @@ sub client_datur {
   }
 }
 
+sub client_connected {
+  my $client = shift;
+  logmsg('Client Connected!');
+
+  foreach (Irssi::servers()) {
+    my $server = $_;
+    foreach ($server->channels()) {
+      my $channel = $_; 
+      server_sendto_client($client, "JOIN " . $channel->{name});
+    }
+  }
+}
+
 sub server_incoming {
   my ($server, $line) = @_;
   sendto_all_clients($line);
+}
+
+sub server_sendto_client {
+  my ($client, $msg) = @_;
+  my $chash = $clients{$client};
+
+  sendto_client($client, sprintf(':%s!%s@proxy %s',
+    $chash->{'nick'},
+    $chash->{'user'},
+    $msg)
+  );
 }
 
 Irssi::signal_add("server incoming", "server_incoming");
