@@ -1,0 +1,166 @@
+<html>
+  <head>
+    <title>Test Client</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.11/jquery-ui.min.js"></script>
+    <script src="lib/irc.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.11/themes/smoothness/jquery-ui.css" />
+    <style>
+      .container {
+        overflow: auto;
+        height: 550px;
+      }
+    </style>
+    <script type="text/javascript">
+    $(function() {
+      $('#content').tabs()
+    })
+
+    function append_message(tab, msg) {
+      $('#'+tab).append(msg+'<br/>')
+      var d = $('#'+tab)[0]
+      d.scrollTop = d.scrollHeight;
+    }
+
+    function server_log(msg) {
+      append_message('server', msg)
+    }
+
+    function server_message(source, target, msg) {
+      append_message('server', msg)
+    }
+
+    $(function() {
+      var ircConn;
+
+      $('#connect').click(function() {
+        var nickname = $('#nickname').eq(0).val()
+        var realname = $('#realname').eq(0).val()
+        var servername = $('#servername').eq(0).val()
+        var port = $('#port').eq(0).val()
+        $('#connect')[0].disabled = true;
+
+        var ws = new WebSocket("ws://"+servername+":"+port)
+        ircConn = new IRCParser(ws)
+
+        ws.onopen = function() {
+          server_log('Connected')
+          ircConn.nick(nickname)
+          ircConn.user(nickname, nickname, nickname, realname)
+        }
+
+        ws.onmessage = function(msg) {
+          ircConn.parsePacket(msg.data)
+        }
+
+        ws.onerror = function() {
+          server_log(arguments)
+        }
+
+        ws.onclose = function() {
+          server_log('Closed')
+          ircConn = null;
+          $('#connect')[0].disabled = false;
+        }
+
+        function splitNUH(source) {
+          var ret = {}
+          var parts = source.split(/!/)
+          ret.nick = parts[0]
+          parts = parts[1].split(/@/)
+          ret.user = parts[0]
+          ret.host = parts[1]
+          return ret
+        }
+
+        function isMe(source) {
+          return splitNUH(source).nick.toLowerCase() == nickname.toLowerCase()
+        }
+
+        function add_tab(name) {
+          $('#content').tabs('add', name, name)
+        }
+
+        ircConn.cmd_001 = server_message
+        ircConn.cmd_002 = server_message
+        ircConn.cmd_003 = server_message
+        ircConn.cmd_004 = server_message
+        ircConn.cmd_005 = server_message
+        ircConn.cmd_042 = server_message
+        ircConn.cmd_250 = server_message
+        ircConn.cmd_251 = server_message
+        ircConn.cmd_252 = server_message
+        ircConn.cmd_255 = server_message
+        ircConn.cmd_265 = server_message
+        ircConn.cmd_266 = server_message
+        ircConn.cmd_372 = server_message
+        ircConn.cmd_375 = server_message
+        ircConn.cmd_376 = server_message
+
+        ircConn.cmd_433 = function(source, target, nick, msg) {
+          server_log(nick+' '+ msg);
+          server_log('Trying '+ nick +'_')
+          nickname = nick+'_';
+          ircConn.nick(nick+'_')
+        }
+
+        ircConn.cmd_PING = function(source, cookie) {
+          ircConn.pong(cookie)
+        }
+
+        ircConn.cmd_NOTICE = function(source, type, msg) {
+          server_log(type+': '+msg); 
+        }
+
+        ircConn.cmd_MODE = function(source, target, mode) {
+          server_log('Mode Changed: ' + target + ' ' + mode)
+        }
+
+        ircConn.cmd_JOIN = function(source, target) {
+          if(isMe(source)) {
+            add_tab(target)
+          } else {
+            append_message(target.substring(1), source +' joined ')
+          }
+        }
+
+        ircConn.cmd_PART = function(source, target, message) {
+          server_log(source + ' parted '+ target + ' ['+message+']')
+        }
+
+        ircConn.cmd_TOPIC = function(source, target, topic) {
+          server_log('Topic for '+ target + ': ' + topic)
+        }
+
+        ircConn.unhandled = function(command, source, params) {
+          server_log(command+', '+source);
+        }
+      })
+
+      $('#command').keyup(function(e) {
+        if(e.keyCode == 13) {
+          if(ircConn) {
+            ircConn.sendMessage($('#command').eq(0).val())
+            $('#command').eq(0).val('')
+          }
+        }
+      })
+    });
+    </script>
+  <head>
+  <body>
+    Nickname: <input type="textbox" id="nickname" maxlength="31" width="31" value="someluser"/>
+    Real Name: <input type="textbox" id="realname" maxlength="100" width="100" value="Some Luser"/>
+    Server: <input type="textbox" id="servername" value="localhost" />
+    Port: <input type="textbox" id="port" value="3000" />
+    <input type="button" value="connect" id="connect" />
+    <div id="content">
+      <ul>
+        <li><a href="#server">Server</a></li>
+      </ul>
+      <div id="server" class="container"></div>
+    </div>
+    <br/>
+    Command: <input type="textbox" id="command" size="100%" maxlength="510" />
+  </body>
+</html>
