@@ -11,6 +11,12 @@ use Irssi;
 use Protocol::WebSocket::Handshake::Server;
 use Protocol::WebSocket::Frame;
 
+use JSON;
+use Data::Dumper;
+
+my $json = JSON->new->allow_nonref;
+$json->allow_blessed(1);
+
 $VERSION = '0.0.1';
 %IRSSI = (
   authors => 'Timothy J Fontaine',
@@ -19,6 +25,11 @@ $VERSION = '0.0.1';
   license => 'MIT/X11',
   description => 'Proxy module that listens on a WebSocket',
 );
+
+Irssi::theme_register([
+ 'irssi_proxy_websocket',
+ '{line_start}{hilight ' . $IRSSI{'name'} . ':} $0'
+]);
 
 my $socket = IO::Socket::INET->new(
     Blocking  => 0,
@@ -29,13 +40,6 @@ my $socket = IO::Socket::INET->new(
     Listen    => 1,
     ReuseAddr => 1,
 );
-
-Irssi::theme_register(
-[
- 'irssi_proxy_websocket',
- '{line_start}{hilight ' . $IRSSI{'name'} . ':} $0'
-]);
-
 $socket->blocking(0);
 $socket->listen;
 
@@ -65,7 +69,7 @@ sub logmsg {
 sub sendto_client {
   my ($client, $msg) = @_;
 
-  $msg .= "\r\n";
+  $msg = $json->encode($msg);
 
   my $frame = Protocol::WebSocket::Frame->new($msg);
   my $buffer = $frame->to_string;
@@ -94,68 +98,14 @@ sub close_client {
 
 sub parse_msg {
   my ($client, $message) = @_;
-  $message =~ s/\r\n//;
-  my (@parts, $source);
+  $message =~ s/\r\n$//;
 
-  if ($message =~ /^:/) {
-    @parts = split(/ /, $message, 2);
-    $source = substr($parts[0], 2);
-    $message = $parts[1];
-  }
-
-  @parts = split(/ /, $message, 2);
-
-  my $command = $parts[0];
-  my $plen = @parts;
-
-  if ($plen == 1) {
-    $message = undef;
-  } else {
-    $message = $parts[1];
-  }
-
-  my @params = ();
-
-  while (defined ($message) && !($message =~ /^:/)) {
-    @parts = split(/ /, $message, 2);
-    push(@params, $parts[0]);
-    $plen = @parts;
-
-    if ($plen > 1) {
-      $message = $parts[1];
-    } else {
-      $message = undef;
-    }
-  }
-
-  if (defined ($message) && $message =~ /^:/) {
-    push (@params, substr($message, 1));
-  }
-
-  handle_command($client, uc($command), $source, @params);
-}
-
-sub check_registered {
-  my $client = shift;
-  my $chash = $clients{$client};
-
-  if (defined($chash->{'user'}) && defined($chash->{'nick'})) {
-    client_connected($client);
-  }
+  my $command = decode_json($message);
+  logmsg($command);
 }
 
 sub handle_command {
   my ($client, $command, $source, @params) = @_;
-
-  my $chash = $clients{$client};
-
-  if      ($command eq "USER") {
-    $chash->{'user'} = $params[0];
-    check_registered($client);
-  } elsif ($command eq "NICK") {
-    $chash->{'nick'} = $params[0];
-    check_registered($client);
-  }
 }
 
 sub client_datur {
@@ -179,6 +129,7 @@ sub client_datur {
     }
     if ($hs->is_done) {
       $client->syswrite($hs->to_string);
+      client_connected($client);
     }
     return;
   }
@@ -192,30 +143,44 @@ sub client_datur {
 sub client_connected {
   my $client = shift;
   logmsg('Client Connected!');
-
-  foreach (Irssi::servers()) {
-    my $server = $_;
-    foreach ($server->channels()) {
-      my $channel = $_; 
-      server_sendto_client($client, "JOIN " . $channel->{name});
-    }
+  my @windows = ();
+  foreach my $window (Irssi::windows()) {
+    push(@windows, {
+      'event' => 'addwindow',
+      'window' => "$window->{'refnum'}",
+      'name' => $window->{'name'},
+    });
   }
+  sendto_client($client, @windows);
 }
 
-sub server_incoming {
-  my ($server, $line) = @_;
-  sendto_all_clients($line);
+#open(LOGFILE, ">>", "/home/tjfontaine/irssi_proxy_websocket/gui.log") or die "Couldn't open file for writing: $!";
+#autoflush LOGFILE 1;
+
+my $whash = {};
+
+sub gui_print_text {
+  #"gui print text", WINDOW_REC, int fg, int bg, int flags, char *text, TEXT_DEST_REC
+  my ($window, $fg, $bg, $flags, $text, $tdest) = @_;
+  my $ref = $window->{'refnum'};
+  unless (defined($whash->{$ref})) {
+    $whash->{$ref} = ''; 
+  }
+  $whash->{$ref} .= $text;
 }
 
-sub server_sendto_client {
-  my ($client, $msg) = @_;
-  my $chash = $clients{$client};
-
-  sendto_client($client, sprintf(':%s!%s@proxy %s',
-    $chash->{'nick'},
-    $chash->{'user'},
-    $msg)
-  );
+sub gui_print_text_finished {
+  my ($window) = @_;
+  my $ref = $window->{'refnum'}; 
+  #print LOGFILE "finished printing " . $ref . ": " . $whash->{$ref} . "\n";
+  #print LOGFILE Dumper($window);
+  sendto_all_clients({
+    event => 'addline',
+    window => $ref,
+    line => $whash->{$ref},
+  });
+  $whash->{$ref} = '';
 }
 
-Irssi::signal_add("server incoming", "server_incoming");
+Irssi::signal_add("gui print text", "gui_print_text");
+Irssi::signal_add("gui print text finished", "gui_print_text_finished");
