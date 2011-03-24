@@ -28,27 +28,24 @@
       append_message('server', msg)
     }
 
-    function server_message(source, target, msg) {
-      append_message('server', msg)
-    }
-    
     function add_tab(name, index) {
       $('#content').tabs('add', '#'+name, name, index)
+      $('#'+name).addClass('container')
     }
 
-    var Handler = function() {
-    }
+    var Handler = function() { }
+    
     Handler.prototype.connected = function(msg) {
 		  $.each(msg.windows, function(widx, win){
 		    add_tab(win.window, win.window);
-		    $.each(win.scrollback, function(sidx, s){
-		      append_message(win.window, s);
-		    })
+		    $('#'+win.window).append(win.scrollback.join('<br/>')+'<br/>')
 		  })
     }
+    
     Handler.prototype.addline = function(msg) {
       append_message(msg.window, msg.line);
     }
+    
     Handler.prototype.unhandled = function(msg) {
       server_log('UNHANDLED: ' + msg.event);
     }
@@ -84,15 +81,20 @@
           $('#connect')[0].disabled = false;
         }
 
-      })
-
-      $('#command').keyup(function(e) {
-        if(e.keyCode == 13) {
-          if(ircConn) {
-            ircConn.sendMessage($('#command').eq(0).val())
-            $('#command').eq(0).val('')
+        $('#command').keyup(function(e) {
+          if(e.keyCode == 13) {
+            if(ws.readyState == 1) {
+              var idx = $('#content').tabs('option', 'selected')
+              var e = {
+                event: 'sendcommand',
+                window: idx,
+                msg: $('#command').eq(0).val(),
+              }
+              ws.send(JSON.stringify(e))
+              $('#command').eq(0).val('')            
+            }
           }
-        }
+        })
       })
     });
     </script>
