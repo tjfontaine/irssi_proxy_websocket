@@ -7,6 +7,7 @@ use IO::Socket::INET;
 use Errno;
 
 use Irssi;
+use Irssi::TextUI;
 
 use Protocol::WebSocket::Handshake::Server;
 use Protocol::WebSocket::Frame;
@@ -56,6 +57,7 @@ sub socket_datur ($) {
       frame => Protocol::WebSocket::Frame->new,
       cpipe => \$client_pipe,
       client => $client,
+      connected => 0,
     };
     $client_pipe = Irssi::input_add($client->fileno, Irssi::INPUT_READ, \&client_datur, $client);
   }
@@ -68,14 +70,17 @@ sub logmsg {
 
 sub sendto_client {
   my ($client, $msg) = @_;
+  my $chash = $clients{$client};
 
-  $msg = $json->encode($msg);
+  if ($chash->{'connected'}) {
+    $msg = $json->encode($msg);
 
-  my $frame = Protocol::WebSocket::Frame->new($msg);
-  my $buffer = $frame->to_string;
-  while(length($buffer) > 0) {
-    my $rs = $client->syswrite($buffer);
-    $buffer = substr($buffer, $rs);
+    my $frame = Protocol::WebSocket::Frame->new($msg);
+    my $buffer = $frame->to_string;
+    while(length($buffer) > 0) {
+      my $rs = $client->syswrite($buffer);
+      $buffer = substr($buffer, $rs);
+    }
   }
 }
 
@@ -142,20 +147,34 @@ sub client_datur {
 
 sub client_connected {
   my $client = shift;
-  logmsg('Client Connected!');
+  my $chash = $clients{$client};
+
   my @windows = ();
   foreach my $window (Irssi::windows()) {
-    push(@windows, {
-      'event' => 'addwindow',
+    my @lines = ();
+    my $entry = {
       'window' => "$window->{'refnum'}",
       'name' => $window->{'name'},
-    });
-  }
-  sendto_client($client, @windows);
-}
+      'scrollback' => \@lines,
+    };
 
-#open(LOGFILE, ">>", "/home/tjfontaine/irssi_proxy_websocket/gui.log") or die "Couldn't open file for writing: $!";
-#autoflush LOGFILE 1;
+    if (defined $window->can('view')) {
+      my $view = $window->view();
+      for (my $line = $view->get_lines(); defined($line); $line = $line->next) {
+        push(@lines, $line->get_text(0));
+      }
+    }
+    push(@windows, $entry);
+    logmsg($window->{'refnum'});
+  }
+
+  $chash->{'connected'} = 1;
+  sendto_client($client, {
+    event => "connected",
+    windows => \@windows
+  });
+  logmsg('Client Connected!');
+}
 
 my $whash = {};
 
@@ -172,8 +191,6 @@ sub gui_print_text {
 sub gui_print_text_finished {
   my ($window) = @_;
   my $ref = $window->{'refnum'}; 
-  #print LOGFILE "finished printing " . $ref . ": " . $whash->{$ref} . "\n";
-  #print LOGFILE Dumper($window);
   sendto_all_clients({
     event => 'addline',
     window => $ref,
