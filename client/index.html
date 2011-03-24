@@ -3,7 +3,6 @@
     <title>Test Client</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.11/jquery-ui.min.js"></script>
-    <script src="lib/irc.js"></script>
     <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.11/themes/smoothness/jquery-ui.css" />
     <style>
       .container {
@@ -17,9 +16,12 @@
     })
 
     function append_message(tab, msg) {
-      $('#'+tab).append(msg+'<br/>')
+      var t = $('#'+tab)
+      $(t).append(msg+'<br/>')
       var d = $('#'+tab)[0]
-      d.scrollTop = d.scrollHeight;
+      if(d) {
+        d.scrollTop = d.scrollHeight;        
+      }
     }
 
     function server_log(msg) {
@@ -29,6 +31,27 @@
     function server_message(source, target, msg) {
       append_message('server', msg)
     }
+    
+    function add_tab(name, index) {
+      $('#content').tabs('add', '#'+name, name, index)
+    }
+
+    var Handler = function() {
+    }
+    Handler.prototype.connected = function(msg) {
+		  $.each(msg.windows, function(widx, win){
+		    add_tab(win.window, win.window);
+		    $.each(win.scrollback, function(sidx, s){
+		      append_message(win.window, s);
+		    })
+		  })
+    }
+    Handler.prototype.addline = function(msg) {
+      append_message(msg.window, msg.line);
+    }
+    Handler.prototype.unhandled = function(msg) {
+      server_log('UNHANDLED: ' + msg.event);
+    }
 
     $(function() {
       $('#connect').click(function() {
@@ -37,13 +60,19 @@
         $('#connect')[0].disabled = true;
 
         var ws = new WebSocket("ws://"+servername+":"+port)
+        var handler = new Handler();
 
         ws.onopen = function() {
           server_log('Connected')
         }
 
         ws.onmessage = function(msg) {
-          server_log(msg.data);
+          var m = $.parseJSON(msg.data);
+          if (handler[m.event]) {
+            handler[m.event](m);
+          } else {
+            handler.unhandled(m);
+          }
         }
 
         ws.onerror = function() {
