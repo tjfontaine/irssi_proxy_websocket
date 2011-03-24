@@ -210,9 +210,22 @@ sub gui_print_text_finished {
 }
 
 sub window_created {
+  my $window = shift;
+
+  sendto_all_clients({
+    event => 'addwindow',
+    window => "$window->{'refnum'}",
+    name => $window->{name},
+  });
 }
 
 sub window_destroyed {
+  my $window = shift;
+
+  sendto_all_clients({
+    event => 'delwindow',
+    window => "$window->{'refnum'}",
+  });
 }
 
 Irssi::signal_add("gui print text", "gui_print_text");
