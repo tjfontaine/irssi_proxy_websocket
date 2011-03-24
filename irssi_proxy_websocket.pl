@@ -105,8 +105,18 @@ sub parse_msg {
   my ($client, $message) = @_;
   $message =~ s/\r\n$//;
 
-  my $command = decode_json($message);
-  logmsg($command);
+  my $command = $json->decode($message);
+  if ($command->{'event'} eq 'sendcommand') {
+    my $active_window = Irssi::window_find_refnum(int($command->{'window'}));
+    if ($command->{'msg'} =~ /^\//) {
+      $active_window->command($command->{'msg'});
+    } else {
+      my $name = $active_window->get_active_name();
+      $active_window->command("MSG " . $name . " " . $command->{'msg'});
+    }
+  } else {
+    logmsg($command->{'event'});
+  }
 }
 
 sub handle_command {
@@ -199,5 +209,14 @@ sub gui_print_text_finished {
   $whash->{$ref} = '';
 }
 
+sub window_created {
+}
+
+sub window_destroyed {
+}
+
 Irssi::signal_add("gui print text", "gui_print_text");
 Irssi::signal_add("gui print text finished", "gui_print_text_finished");
+
+Irssi::signal_add("window created", "window_created");
+Irssi::signal_add("window destroyed", "window_destroyed");
