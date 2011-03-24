@@ -46,6 +46,14 @@
       append_message(msg.window, msg.line);
     }
     
+    Handler.prototype.addwindow = function(msg) {
+      add_tab(msg.window, msg.window)
+    }
+    
+    Handler.prototype.delwindow = function(msg) {
+      $('#content').tabs('remove', parseInt(msg.window))
+    }
+    
     Handler.prototype.unhandled = function(msg) {
       server_log('UNHANDLED: ' + msg.event);
     }
