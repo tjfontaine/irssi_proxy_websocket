@@ -161,7 +161,7 @@ sub getscrollback {
   my @lines = ();
 
   for (my $line = $view->get_lines(); defined($line); $line = $line->next) {
-    push(@lines, $line->get_text(0));
+    push(@lines, encode_entities($line->get_text(0)));
   }
 
   sendto_client($client, {
