@@ -27,7 +27,9 @@
     }
 
     function server_log(msg) {
-      append_message('server', msg)
+      var now = new Date()
+      var time = [now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds()]
+      append_message('server', time.join(':') + ' ==> ' + msg)
     }
 
     function add_tab(name, index) {
@@ -93,7 +95,7 @@
             select: function(event, ui) {
               var win = parseInt($(ui.tab).text())
               if(!isNaN(win)) {
-                $('#'+win).html()
+                $('#'+win).html('')
                 trigger_event({
                   event: 'getscrollback',
                   window: win,
