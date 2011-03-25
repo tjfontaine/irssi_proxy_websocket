@@ -12,7 +12,9 @@
     </style>
     <script type="text/javascript">
     $(function() {
-      $('#content').tabs()
+      $('#content').tabs({
+        add: sort_tabs,
+      })
     })
 
     function append_message(tab, msg) {
@@ -29,17 +31,26 @@
     }
 
     function add_tab(name, index) {
-      $('#content').tabs('add', '#'+name, name, index)
+      $('#content').tabs('add', '#'+name, name, parseInt(index))
       $('#'+name).addClass('container')
+    }
+    
+    function sort_tabs() {
     }
 
     var Handler = function() { }
     
-    Handler.prototype.connected = function(msg) {
+    Handler.prototype.windowlist = function(msg) {
 		  $.each(msg.windows, function(widx, win){
 		    add_tab(win.window, win.window);
-		    $('#'+win.window).append(win.scrollback.join('<br/>')+'<br/>')
 		  })
+    }
+    
+    Handler.prototype.scrollback = function(msg) {
+      $('#'+msg.window).html(msg.lines.join('<br/>'))
+      $('#'+msg.window).append('<br/>')
+      var tab = $('#'+msg.window)[0]
+      tab.scrollTop = tab.scrollHeight;
     }
     
     Handler.prototype.addline = function(msg) {
@@ -67,8 +78,29 @@
         var ws = new WebSocket("ws://"+servername+":"+port)
         var handler = new Handler();
 
+        function trigger_event(ev) {
+          ws.send(JSON.stringify(ev))
+        }
+        
         ws.onopen = function() {
           server_log('Connected')
+          
+          trigger_event({
+            event: 'listwindows',
+          })
+          
+          $('#content').tabs({
+            select: function(event, ui) {
+              var win = parseInt($(ui.tab).text())
+              if(!isNaN(win)) {
+                $('#'+win).html()
+                trigger_event({
+                  event: 'getscrollback',
+                  window: win,
+                })  
+              }
+            },
+          })
         }
 
         ws.onmessage = function(msg) {
@@ -93,12 +125,17 @@
           if(e.keyCode == 13) {
             if(ws.readyState == 1) {
               var idx = $('#content').tabs('option', 'selected')
-              var e = {
-                event: 'sendcommand',
-                window: idx,
-                msg: $('#command').eq(0).val(),
+              var tab = $('#content li')
+              tab = tab.get(idx)
+              var win = $(tab).text()
+              win = parseInt(win)
+              if(!isNaN(win)) {
+                trigger_event({
+                  event: 'sendcommand',
+                  window: win,
+                  msg: $('#command').eq(0).val(),
+                })  
               }
-              ws.send(JSON.stringify(e))
               $('#command').eq(0).val('')            
             }
           }
