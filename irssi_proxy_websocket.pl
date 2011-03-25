@@ -15,6 +15,8 @@ use Protocol::WebSocket::Frame;
 use JSON;
 use Data::Dumper;
 
+use HTML::Entities;
+
 my $json = JSON->new->allow_nonref;
 $json->allow_blessed(1);
 
@@ -218,7 +220,7 @@ sub gui_print_text {
   unless (defined($whash->{$ref})) {
     $whash->{$ref} = ''; 
   }
-  $whash->{$ref} .= $text;
+  $whash->{$ref} .= encode_entities($text);
 }
 
 sub gui_print_text_finished {
