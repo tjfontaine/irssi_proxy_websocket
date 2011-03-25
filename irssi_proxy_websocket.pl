@@ -114,13 +114,59 @@ sub parse_msg {
       my $name = $active_window->get_active_name();
       $active_window->command("MSG " . $name . " " . $command->{'msg'});
     }
+  } elsif ($command->{'event'} eq 'listwindows') {
+    listwindows($client, $command);
+  } elsif ($command->{'event'} eq 'getscrollback') {
+    getscrollback($client, $command);
   } else {
     logmsg($command->{'event'});
   }
 }
 
-sub handle_command {
-  my ($client, $command, $source, @params) = @_;
+sub listwindows {
+  my ($client, $event) = @_;
+  
+  my @windows = ();
+  foreach my $window (Irssi::windows()) {
+    my @items = ();
+    my $entry = {
+      'window' => "$window->{'refnum'}",
+      'name' => $window->{'name'},
+      'items' => \@items,
+    };
+
+    for my $item ($window->items) {
+      push(@items, {
+        name => $item->{name},
+        type => $item->{type},
+        active => $item->is_active,
+      });
+    }
+
+    push(@windows, $entry);
+  }
+
+  sendto_client($client, {
+    event => "windowlist",
+    windows => \@windows
+  });
+};
+
+sub getscrollback {
+  my ($client, $event) = @_;
+  my $window = Irssi::window_find_refnum(int($event->{'window'}));
+  my $view = $window->view();
+  my @lines = ();
+
+  for (my $line = $view->get_lines(); defined($line); $line = $line->next) {
+    push(@lines, $line->get_text(0));
+  }
+
+  sendto_client($client, {
+    event => "scrollback",
+    window => $event->{'window'},
+    lines => \@lines,
+  });
 }
 
 sub client_datur {
@@ -159,31 +205,8 @@ sub client_connected {
   my $client = shift;
   my $chash = $clients{$client};
 
-  my @windows = ();
-  foreach my $window (Irssi::windows()) {
-    my @lines = ();
-    my $entry = {
-      'window' => "$window->{'refnum'}",
-      'name' => $window->{'name'},
-      'scrollback' => \@lines,
-    };
-
-    if (defined $window->can('view')) {
-      my $view = $window->view();
-      for (my $line = $view->get_lines(); defined($line); $line = $line->next) {
-        push(@lines, $line->get_text(0));
-      }
-    }
-    push(@windows, $entry);
-    logmsg($window->{'refnum'});
-  }
-
-  $chash->{'connected'} = 1;
-  sendto_client($client, {
-    event => "connected",
-    windows => \@windows
-  });
   logmsg('Client Connected!');
+  $chash->{'connected'} = 1;
 }
 
 my $whash = {};
