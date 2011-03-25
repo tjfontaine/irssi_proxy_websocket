@@ -168,6 +168,8 @@ sub getscrollback {
     push(@lines, encode_entities($line->get_text(0)));
   }
 
+  @lines = @lines[-100..-1];
+
   sendto_client($client, {
     event => "scrollback",
     window => $event->{'window'},
