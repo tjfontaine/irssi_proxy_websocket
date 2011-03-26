@@ -16,8 +16,6 @@ use JSON;
 use Data::Dumper;
 
 use HTML::Entities;
-use MIME::Base64;
-use Compress::Zlib;
 
 my $json = JSON->new->allow_nonref;
 $json->allow_blessed(1);
@@ -79,9 +77,7 @@ sub sendto_client {
   if ($chash->{'connected'}) {
     $msg = $json->encode($msg);
 
-    my $output = encode_base64(Compress::Zlib::memGzip($msg));
-
-    my $frame = Protocol::WebSocket::Frame->new($output);
+    my $frame = Protocol::WebSocket::Frame->new($msg);
     my $buffer = $frame->to_string;
     while(length($buffer) > 0) {
       my $rs = $client->syswrite($buffer);
