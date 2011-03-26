@@ -99,7 +99,6 @@ sub close_client {
   my ($client, $msg) = @_;
   my $cpipe = $clients{$client}->{'cpipe'};
   Irssi::input_remove($$cpipe);
-  logmsg($msg);
   delete $clients{$client};
   #$client->shutdown;
 }
@@ -130,7 +129,8 @@ sub parse_msg {
 
 sub activewindow {
   my ($client, $event) = @_;
-
+  my $window = Irssi::window_find_refnum(int($event->{'window'}));
+  $window->set_active();
   $clients{$client}->{'activewindow'} = int($event->{'window'});
 }
 
@@ -219,7 +219,7 @@ sub client_connected {
   my $client = shift;
   my $chash = $clients{$client};
 
-  logmsg('Client Connected!');
+  #logmsg('Client Connected!');
   $chash->{'connected'} = 1;
 }
 
