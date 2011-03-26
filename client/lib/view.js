@@ -14,27 +14,32 @@ View.prototype.del_window = function(win) {
 View.prototype.set_window_activity = function(win, level) {
   /* data_level - 0=no new data, 1=text, 2=msg, 3=highlighted text */
   win = parseInt(win)
-  var idx = win + 1
-  var sel = '#content ul li:nth-child('+idx+') span'
-  var li = $(sel)
-  var cur = li.text().replace('*', '')
-  cur = parseInt(win)
-  if(cur == win){
-    switch(level) {
-      case 0:
-        li.text(cur)
-        break;
-      case 1:
-        li.text(cur+'+')
-        break;
-      case 2:
-        li.text(cur+'*')
-        break;
-      case 3:
-        li.text(cur+'!')
-        break;
+  if(win != this.current_window()) {
+    var idx = win + 1
+    var li = $('#content ul li:nth-child('+idx+') span')
+    var cur = parseInt(li.text().replace(/[*!+]/, ''))
+    
+    if(cur == win){
+      switch(level) {
+        case 0:
+          li.text(cur)
+          break;
+        case 1:
+          li.text(cur+'+')
+          break;
+        case 2:
+          li.text(cur+'*')
+          break;
+        case 3:
+          li.text(cur+'!')
+          break;
+      }
     }
   }
+}
+
+View.prototype.current_window = function() {
+  return $('#content').tabs('option', 'selected')
 }
 
 View.prototype.set_content = function(win, html) {
