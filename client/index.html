@@ -62,9 +62,7 @@
         $('#command').keyup(function(e) {
           if(e.keyCode == 13 || e.keyCode == 9) {
             var msg = $('#command').eq(0).val()
-            var tab = $('#content li').get(view.current_window())
-            var win = $(tab).text()
-            win = parseInt(win)
+            var win = view.current_window()+1
             
             if (e.keyCode == 9) {
             }

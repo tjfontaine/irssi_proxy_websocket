@@ -3,7 +3,7 @@ var View = function() {
 }
 
 View.prototype.add_window = function(name, index) {
-  $('#content').tabs('add', '#'+name, name, parseInt(index))
+  $('#content').tabs('add', '#'+index, name)
   $('#'+name).addClass('container')
 }
 
@@ -14,28 +14,33 @@ View.prototype.del_window = function(win) {
 View.prototype.set_window_activity = function(win, level) {
   /* data_level - 0=no new data, 1=text, 2=msg, 3=highlighted text */
   win = parseInt(win)
-  if(win != this.current_window()) {
+  if(win != this.current_window() || level == 0) {
     var idx = win + 1
     var li = $('#content ul li:nth-child('+idx+') span')
     var cur = parseInt(li.text().replace(/[*!+]/, ''))
     
     if(cur == win){
-      switch(level) {
-        case 0:
-          li.text(cur)
-          break;
-        case 1:
-          li.text(cur+'+')
-          break;
-        case 2:
-          li.text(cur+'*')
-          break;
-        case 3:
-          li.text(cur+'!')
-          break;
-      }
+      cur = this.activity_name(cur, level)
+      li.text(cur)
     }
   }
+}
+
+View.prototype.activity_name = function(cur, level) {
+  switch(level) {
+    case 0:
+      break;
+    case 1:
+      cur += '+'
+      break;
+    case 2:
+      cur += '*'
+      break;
+    case 3:
+      cur += '!'
+      break;
+  }
+  return cur;
 }
 
 View.prototype.current_window = function() {

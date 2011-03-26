@@ -16,8 +16,7 @@ Handler.prototype.listwindows = function() {
 Handler.prototype.windowlist = function(msg) {
   var self = this;
   $.each(msg.windows, function(widx, win){
-    self.view.add_window(win.window, win.window);
-    self.view.set_window_activity(win.window, win.data_level)
+    self.view.add_window(self.view.activity_name(win.window, win.data_level), win.window);
   })
 }
 
