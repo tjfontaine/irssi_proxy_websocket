@@ -32,6 +32,8 @@
               handler.activewindow(win)
             }
           },
+          add: view.sort_windows,
+          remove: view.sort_windows,
         })
         
         ws.onopen = function() {
@@ -90,9 +92,9 @@
     <input type="button" value="connect" id="connect" />
     <div id="content">
       <ul>
-        <li><a href="#server">Server</a></li>
+        <li><a href="#server">Log</a></li>
       </ul>
-      <div id="server" class="container"></div>
+      <div id="server"></div>
     </div>
     <br/>
     Command: <input type="textbox" id="command" size="100%" maxlength="510" />

@@ -37,7 +37,15 @@ View.prototype.log = function(msg) {
   this.append_message('server', time.join(':') + ' ==> ' + msg)
 }
 
-
-
-function sort_tabs() {
+View.prototype.sort_windows = function(event, ui) {
+  $('#content li').sort(function(a, b){
+    var ai = parseInt($(a).text())
+    var bi = parseInt($(b).text())
+    
+    if(ai > bi) {
+      return 1;
+    } else {
+      return -1;
+    }
+  }).appendTo('#content ul')
 }
