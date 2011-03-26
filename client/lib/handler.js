@@ -56,7 +56,7 @@ Handler.prototype.unhandled = function(msg) {
   this.view.log('UNHANDLED: ' + msg.event);
 }
 
-Handler.prototype.sendcommand = function(window, msg) {
+Handler.prototype.sendcommand = function(win, msg) {
   this.trigger({
     event: 'sendcommand',
     window: win,

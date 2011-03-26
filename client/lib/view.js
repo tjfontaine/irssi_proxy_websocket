@@ -8,7 +8,6 @@ View.prototype.add_window = function(name, index) {
 }
 
 View.prototype.del_window = function(win) {
-  /* TODO XXX FIXME this needs to lookup by name until we sort right */
   $('#content').tabs('remove', win)
 }
 
