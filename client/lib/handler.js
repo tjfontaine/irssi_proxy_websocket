@@ -17,6 +17,7 @@ Handler.prototype.windowlist = function(msg) {
   var self = this;
   $.each(msg.windows, function(widx, win){
     self.view.add_window(win.window, win.window);
+    self.view.set_window_activity(win.window, win.data_level)
   })
 }
 
@@ -37,6 +38,7 @@ Handler.prototype.activewindow = function(win) {
     event: 'activewindow',
     window: win,
   })
+  this.view.set_window_activity(win, 0)
 }
 
 Handler.prototype.addline = function(msg) {
@@ -53,7 +55,7 @@ Handler.prototype.delwindow = function(msg) {
 }
 
 Handler.prototype.unhandled = function(msg) {
-  this.view.log('UNHANDLED: ' + msg.event);
+  this.view.log('UNHANDLED: ' + JSON.stringify(msg));
 }
 
 Handler.prototype.sendcommand = function(win, msg) {
@@ -62,4 +64,8 @@ Handler.prototype.sendcommand = function(win, msg) {
     window: win,
     msg: msg,
   })
+}
+
+Handler.prototype.activity = function(msg) {
+  this.view.set_window_activity(msg.window, msg.level)
 }

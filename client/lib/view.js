@@ -11,6 +11,32 @@ View.prototype.del_window = function(win) {
   $('#content').tabs('remove', win)
 }
 
+View.prototype.set_window_activity = function(win, level) {
+  /* data_level - 0=no new data, 1=text, 2=msg, 3=highlighted text */
+  win = parseInt(win)
+  var idx = win + 1
+  var sel = '#content ul li:nth-child('+idx+') span'
+  var li = $(sel)
+  var cur = li.text().replace('*', '')
+  cur = parseInt(win)
+  if(cur == win){
+    switch(level) {
+      case 0:
+        li.text(cur)
+        break;
+      case 1:
+        li.text(cur+'+')
+        break;
+      case 2:
+        li.text(cur+'*')
+        break;
+      case 3:
+        li.text(cur+'!')
+        break;
+    }
+  }
+}
+
 View.prototype.set_content = function(win, html) {
   $('#'+win).html(html)
   $('#'+win).append('<br/>')
@@ -38,8 +64,8 @@ View.prototype.log = function(msg) {
 
 View.prototype.sort_windows = function(event, ui) {
   $('#content li').sort(function(a, b){
-    var ai = parseInt($(a).text())
-    var bi = parseInt($(b).text())
+    var ai = parseInt($(a).text().replace(/[*!+]/, ''))
+    var bi = parseInt($(b).text().replace(/[*!+]/, ''))
     
     if(ai > bi) {
       return 1;
