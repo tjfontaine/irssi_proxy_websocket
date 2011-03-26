@@ -144,6 +144,7 @@ sub listwindows {
       'window' => "$window->{'refnum'}",
       'name' => $window->{'name'},
       'items' => \@items,
+      'data_level' => $window->{data_level},
     };
 
     for my $item ($window->items) {
@@ -269,8 +270,20 @@ sub window_destroyed {
   });
 }
 
+sub window_activity {
+  my ($window, $oldlevel) = @_;
+
+  sendto_all_clients({
+    event => 'activity',
+    window => "$window->{'refnum'}",
+    level => $window->{data_level},
+    oldlevel => $oldlevel,
+  });
+}
+
 Irssi::signal_add("gui print text", "gui_print_text");
 Irssi::signal_add("gui print text finished", "gui_print_text_finished");
 
 Irssi::signal_add("window created", "window_created");
 Irssi::signal_add("window destroyed", "window_destroyed");
+Irssi::signal_add("window activity", "window_activity");
