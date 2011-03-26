@@ -60,6 +60,7 @@ sub socket_datur ($) {
       cpipe => \$client_pipe,
       client => $client,
       connected => 0,
+      activewindow => 0,
     };
     $client_pipe = Irssi::input_add($client->fileno, Irssi::INPUT_READ, \&client_datur, $client);
   }
@@ -120,9 +121,17 @@ sub parse_msg {
     listwindows($client, $command);
   } elsif ($command->{'event'} eq 'getscrollback') {
     getscrollback($client, $command);
+  } elsif ($command->{'event'} eq 'activewindow') {
+    activewindow($client, $command);
   } else {
     logmsg($command->{'event'});
   }
+}
+
+sub activewindow {
+  my ($client, $event) = @_;
+
+  $clients{$client}->{'activewindow'} = int($event->{'window'});
 }
 
 sub listwindows {
@@ -228,11 +237,16 @@ sub gui_print_text {
 sub gui_print_text_finished {
   my ($window) = @_;
   my $ref = $window->{'refnum'}; 
-  sendto_all_clients({
-    event => 'addline',
-    window => $ref,
-    line => $whash->{$ref},
-  });
+
+  while (my ($client, $chash) = each %clients) {
+    if ($chash->{'activewindow'} == int($ref)) {
+      sendto_client($chash->{'client'}, {
+        event => 'addline',
+        window => $ref,
+        line => $whash->{$ref},
+      });
+    }
+  }
   $whash->{$ref} = '';
 }
 
