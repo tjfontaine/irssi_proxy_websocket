@@ -223,32 +223,20 @@ sub client_connected {
   $chash->{'connected'} = 1;
 }
 
-my $whash = {};
-
-sub gui_print_text {
-  #"gui print text", WINDOW_REC, int fg, int bg, int flags, char *text, TEXT_DEST_REC
-  my ($window, $fg, $bg, $flags, $text, $tdest) = @_;
-  my $ref = $window->{'refnum'};
-  unless (defined($whash->{$ref})) {
-    $whash->{$ref} = ''; 
-  }
-  $whash->{$ref} .= encode_entities($text);
-}
-
 sub gui_print_text_finished {
   my ($window) = @_;
   my $ref = $window->{'refnum'}; 
+  my $line = $window->view->{buffer}->{cur_line}->get_text(0);
 
   while (my ($client, $chash) = each %clients) {
     if ($chash->{'activewindow'} == int($ref)) {
       sendto_client($chash->{'client'}, {
         event => 'addline',
         window => $ref,
-        line => $whash->{$ref},
+        line => $line,
       });
     }
   }
-  $whash->{$ref} = '';
 }
 
 sub window_created {
@@ -281,7 +269,6 @@ sub window_activity {
   });
 }
 
-Irssi::signal_add("gui print text", "gui_print_text");
 Irssi::signal_add("gui print text finished", "gui_print_text_finished");
 
 Irssi::signal_add("window created", "window_created");
