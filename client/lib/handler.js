@@ -18,6 +18,7 @@ Handler.prototype.windowlist = function(msg) {
   $.each(msg.windows, function(widx, win){
     self.view.add_window(self.view.activity_name(win.window, win.data_level), win.window);
   })
+  this.view.sort_windows()
 }
 
 Handler.prototype.getscrollback = function(win) {
@@ -58,11 +59,13 @@ Handler.prototype.unhandled = function(msg) {
 }
 
 Handler.prototype.sendcommand = function(win, msg) {
-  this.trigger({
-    event: 'sendcommand',
-    window: win,
-    msg: msg,
-  })
+  if(win > 0) {
+    this.trigger({
+      event: 'sendcommand',
+      window: win,
+      msg: msg,
+    })
+  }
 }
 
 Handler.prototype.activity = function(msg) {
