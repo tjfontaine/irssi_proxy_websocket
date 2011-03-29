@@ -61,6 +61,7 @@ sub socket_datur ($) {
       client => $client,
       connected => 0,
       activewindow => 0,
+      color => 0,
     };
     $client_pipe = Irssi::input_add($client->fileno, Irssi::INPUT_READ, \&client_datur, $client);
   }
@@ -171,7 +172,8 @@ sub getscrollback {
   my @lines = ();
 
   for (my $line = $view->get_lines(); defined($line); $line = $line->next) {
-    push(@lines, encode_entities($line->get_text(0)));
+    my $l = $line->get_text($event->{'color'});
+    push(@lines, $l);
   }
 
   @lines = @lines[-100..-1];
@@ -226,10 +228,19 @@ sub client_connected {
 sub gui_print_text_finished {
   my ($window) = @_;
   my $ref = $window->{'refnum'}; 
-  my $line = $window->view->{buffer}->{cur_line}->get_text(0);
+  my $color_line = $window->view->{buffer}->{cur_line}->get_text(1);
+  my $plain_line = $window->view->{buffer}->{cur_line}->get_text(0);
 
   while (my ($client, $chash) = each %clients) {
     if ($chash->{'activewindow'} == int($ref)) {
+      my $line;
+
+      if($chash->{'color'}) {
+        $line = $color_line;
+      } else {
+        $line = $plain_line;
+      }
+
       sendto_client($chash->{'client'}, {
         event => 'addline',
         window => $ref,
