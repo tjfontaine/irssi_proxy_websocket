@@ -26,6 +26,7 @@ Handler.prototype.getscrollback = function(win) {
     event: 'getscrollback',
     window: win,
     color: false,
+    count: 100,
   })
 }
 
