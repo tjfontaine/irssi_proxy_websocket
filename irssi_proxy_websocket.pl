@@ -168,15 +168,16 @@ sub listwindows {
 sub getscrollback {
   my ($client, $event) = @_;
   my $window = Irssi::window_find_refnum(int($event->{'window'}));
-  my $view = $window->view();
+  my $line = $window->view->{buffer}->{cur_line};
   my @lines = ();
 
-  for (my $line = $view->get_lines(); defined($line); $line = $line->next) {
+  for (my $i = 0; $i < $event->{'count'} && defined($line); $line = $line->prev) {
     my $l = $line->get_text($event->{'color'});
     push(@lines, $l);
+    $i++;
   }
 
-  @lines = @lines[-100..-1];
+  @lines = reverse(@lines);
 
   sendto_client($client, {
     event => "scrollback",
