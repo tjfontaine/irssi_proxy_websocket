@@ -31,7 +31,7 @@ Handler.prototype.getscrollback = function(win) {
 }
 
 Handler.prototype.scrollback = function(msg) {
-  this.view.set_content(msg.window, msg.lines.join('<br/>'))
+  this.view.set_content(msg.window, msg.lines)
   this.view.scroll_to_bottom(msg.window)
 }
 

@@ -52,14 +52,12 @@ View.prototype.activity_name = function(cur, level) {
   return idx
 }*/
 
-View.prototype.set_content = function(win, html) {
-  $('#'+win).html(html)
-  $('#'+win).append('<br/>')
+View.prototype.set_content = function(win, lines) {
+  $('#'+win).append('<pre>'+lines.join("\n")+'\n</pre>')
 }
 
 View.prototype.append_message = function(win, msg) {
-  var t = $('#'+win)
-  $(t).append(msg+'<br/>')
+  $('#'+win).html($('#'+win).html().replace(/<\/pre>$/, msg + '\n</pre>'))
 }
 
 View.prototype.clear_window = function(win) {
