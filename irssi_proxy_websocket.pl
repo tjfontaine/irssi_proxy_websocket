@@ -85,7 +85,7 @@ websocket '/' => sub {
 
 get '/' => sub {
   my $client = shift;
-  return $client->redirect_to('index.html');
+  $client->render_static('index.html');
 };
 
 sub sendto_client {
