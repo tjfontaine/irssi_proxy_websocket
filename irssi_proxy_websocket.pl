@@ -16,8 +16,12 @@ use Data::Dumper;
 use Mojolicious::Lite;
 use Mojo::Server::Daemon;
 
+use File::Basename 'dirname';
+use File::Spec;
+
 # Mojo likes to spew, this makes irssi mostly unsuable
 app->log->level('fatal');
+app->static->root(File::Spec->catdir(dirname(__FILE__), 'client'));
 
 #TODO XXX FIXME this needs to be a setting string
 my $daemon = Mojo::Server::Daemon->new(
@@ -74,7 +78,7 @@ websocket '/' => sub {
 
 get '/' => sub {
   my $client = shift;
-  #TODO XXX FIXME I'd like to ship the actual client files here
+  return $client->redirect_to('index.html');
 };
 
 sub sendto_client {
