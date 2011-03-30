@@ -19,6 +19,8 @@ use Mojo::Server::Daemon;
 use File::Basename 'dirname';
 use File::Spec;
 
+$ENV{MOJO_REUSE} = 1;
+
 # Mojo likes to spew, this makes irssi mostly unsuable
 app->log->level('fatal');
 app->static->root(File::Spec->catdir(dirname(__FILE__), 'client'));
@@ -242,14 +244,9 @@ Irssi::signal_add("window destroyed", "window_destroyed");
 Irssi::signal_add("window activity", "window_activity");
 
 sub UNLOAD {
-  # TODO XXX FIXME boy wouldn't it be great if we could reload this without quitting?
-  # The source indicates some checks for REUSE maybe we're just not setting this up
-  # properly, but unloading should at least make the script stop listening
   Irssi::timeout_remove($loop_id);
   Irssi::signal_remove("gui print text finished", "gui_print_text_finished");
   Irssi::signal_remove("window created", "window_created");
   Irssi::signal_remove("window destroyed", "window_destroyed");
   Irssi::signal_remove("window activity", "window_activity");
-
-  $daemon = undef;
 }
