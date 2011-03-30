@@ -30,7 +30,8 @@ my $daemon = Mojo::Server::Daemon->new(
   listen => [Irssi::settings_get_str('ipw_listenurl')]
 );
 
-#TODO XXX FIXME this creates both the expected listener and a random port WTF
+#TODO XXX FIXME mojo creates a random port for some ioloop operations
+# this is bound to make people angry who don't understand why
 $daemon->prepare_ioloop;
 
 sub ws_loop {
@@ -67,7 +68,7 @@ sub logmsg {
 
 websocket '/' => sub {
   my $client = shift;
-  logmsg("client connected");
+  logmsg("Client Connected From: " . $client->tx->remote_address);
   $clients{$client} = {
     client => $client,
     activewindow => 0,
