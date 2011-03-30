@@ -3,19 +3,38 @@
 use strict;
 use vars qw($VERSION %IRSSI);
 
+use IO::Socket::SSL;
 use IO::Socket::INET;
 use Errno;
 
 use Irssi;
 use Irssi::TextUI;
 
-use Protocol::WebSocket::Handshake::Server;
-use Protocol::WebSocket::Frame;
-
 use JSON;
 use Data::Dumper;
 
-use HTML::Entities;
+use Mojolicious::Lite;
+use Mojo::Server::Daemon;
+
+# Mojo likes to spew, this makes irssi mostly unsuable
+app->log->level('fatal');
+
+#TODO XXX FIXME this needs to be a setting string
+my $daemon = Mojo::Server::Daemon->new(
+  app => app,
+  listen => ['https://*:3000:/home/tjfontaine/.irssi/ipw.pem:/home/tjfontaine/.irssi/ipw.pem']
+);
+
+#TODO XXX FIXME this creates both the expected listener and a random port WTF
+$daemon->prepare_ioloop;
+
+sub ws_loop {
+  $daemon->ioloop->one_tick;
+}
+
+#TODO XXX FIXME we may be able to up this to 1000 or higher if abuse
+# mojo ->{handle} into the input_add system
+my $loop_id = Irssi::timeout_add(100, \&ws_loop, 0);
 
 my $json = JSON->new->allow_nonref;
 $json->allow_blessed(1);
@@ -34,58 +53,34 @@ Irssi::theme_register([
  '{line_start}{hilight ' . $IRSSI{'name'} . ':} $0'
 ]);
 
-my $socket = IO::Socket::INET->new(
-    Blocking  => 0,
-    LocalAddr => '0.0.0.0',
-    LocalPort => 3000,
-    Proto     => 'tcp',
-    Type      => SOCK_STREAM,
-    Listen    => 1,
-    ReuseAddr => 1,
-);
-$socket->blocking(0);
-$socket->listen;
-
-Irssi::input_add($socket->fileno, Irssi::INPUT_READ, \&socket_datur, 0);
-
 my %clients = ();
-
-sub socket_datur ($) {
-  my $client;
-  if ($client = $socket->accept) {
-    my $client_pipe;
-    $clients{$client} = {
-      hs => Protocol::WebSocket::Handshake::Server->new,
-      frame => Protocol::WebSocket::Frame->new,
-      cpipe => \$client_pipe,
-      client => $client,
-      connected => 0,
-      activewindow => 0,
-      color => 0,
-    };
-    $client_pipe = Irssi::input_add($client->fileno, Irssi::INPUT_READ, \&client_datur, $client);
-  }
-}
 
 sub logmsg {
   my $msg = shift;
   Irssi::printformat(MSGLEVEL_CLIENTCRAP, 'irssi_proxy_websocket', $msg);
 }
 
+websocket '/' => sub {
+  my $client = shift;
+  logmsg("client connected");
+  $clients{$client} = {
+    client => $client,
+    activewindow => 0,
+    color => 0,
+  };
+  $client->on_message(\&parse_msg);
+  #TODO XXX FIXME isn't there some on_close mechanism we should pay attention to?
+};
+
+get '/' => sub {
+  my $client = shift;
+  #TODO XXX FIXME I'd like to ship the actual client files here
+};
+
 sub sendto_client {
   my ($client, $msg) = @_;
-  my $chash = $clients{$client};
-
-  if ($chash->{'connected'}) {
-    $msg = $json->encode($msg);
-
-    my $frame = Protocol::WebSocket::Frame->new($msg);
-    my $buffer = $frame->to_string;
-    while(length($buffer) > 0) {
-      my $rs = $client->syswrite($buffer);
-      $buffer = substr($buffer, $rs);
-    }
-  }
+  $msg = $json->encode($msg);
+  $client->send_message($msg);
 }
 
 sub sendto_all_clients {
@@ -94,14 +89,6 @@ sub sendto_all_clients {
   while (my ($client, $chash) = each %clients) {
     sendto_client($chash->{'client'}, $msg);
   }
-}
-
-sub close_client {
-  my ($client, $msg) = @_;
-  my $cpipe = $clients{$client}->{'cpipe'};
-  Irssi::input_remove($$cpipe);
-  delete $clients{$client};
-  #$client->shutdown;
 }
 
 sub parse_msg {
@@ -186,46 +173,6 @@ sub getscrollback {
   });
 }
 
-sub client_datur {
-  my $client = shift;
-  my $chash = $clients{$client};
-
-  my $hs = $chash->{'hs'};
-  my $frame = $chash->{'frame'};
-
-  my $rs = $client->sysread(my $chunk, 512);
-  
-  if ($rs == 0 || (!defined $rs && !$!{EAGAIN})) {
-    close_client($client, "Connection Closed");
-    return;
-  }
-
-  if (!$hs->is_done) {
-    unless (defined $hs->parse($chunk)) {
-      close_client($client, "Handshake Fail: " . $hs->error);
-      return;
-    }
-    if ($hs->is_done) {
-      $client->syswrite($hs->to_string);
-      client_connected($client);
-    }
-    return;
-  }
-
-  $frame->append($chunk);
-  while (defined(my $message = $frame->next)) {
-    parse_msg($client, $message);
-  }
-}
-
-sub client_connected {
-  my $client = shift;
-  my $chash = $clients{$client};
-
-  #logmsg('Client Connected!');
-  $chash->{'connected'} = 1;
-}
-
 sub gui_print_text_finished {
   my ($window) = @_;
   my $ref = $window->{'refnum'}; 
@@ -283,6 +230,20 @@ sub window_activity {
 
 Irssi::signal_add("gui print text finished", "gui_print_text_finished");
 
+# TODO XXX FIXME we still need to handle renumbering
 Irssi::signal_add("window created", "window_created");
 Irssi::signal_add("window destroyed", "window_destroyed");
 Irssi::signal_add("window activity", "window_activity");
+
+sub UNLOAD {
+  # TODO XXX FIXME boy wouldn't it be great if we could reload this without quitting?
+  # The source indicates some checks for REUSE maybe we're just not setting this up
+  # properly, but unloading should at least make the script stop listening
+  Irssi::timeout_remove($loop_id);
+  Irssi::signal_remove("gui print text finished", "gui_print_text_finished");
+  Irssi::signal_remove("window created", "window_created");
+  Irssi::signal_remove("window destroyed", "window_destroyed");
+  Irssi::signal_remove("window activity", "window_activity");
+
+  $daemon = undef;
+}
