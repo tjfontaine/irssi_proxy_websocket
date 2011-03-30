@@ -77,7 +77,10 @@ websocket '/' => sub {
     color => 0,
   };
   $client->on_message(\&parse_msg);
-  #TODO XXX FIXME isn't there some on_close mechanism we should pay attention to?
+  $client->on_finish(sub {
+    logmsg("Client From: " . $client->tx->remote_address . " Closed");
+    delete $clients{$client};
+  });
 };
 
 get '/' => sub {
