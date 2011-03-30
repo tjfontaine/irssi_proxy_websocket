@@ -23,11 +23,10 @@
     $(function() {
       $($('#content li').get(0)).data('index', 0)
       $('#connect').click(function() {
-        var servername = $('#servername').eq(0).val()
-        var port = $('#port').eq(0).val()
         $('#connect')[0].disabled = true;
         
-        var ws = new WebSocket("wss://"+servername+":"+port)
+        var loc = window.location.origin.replace(/^http/i, 'ws')
+        var ws = new WebSocket(loc)
         var view = new View()
         var handler = new Handler(ws, view);
         
@@ -82,8 +81,6 @@
     </script>
   </head>
   <body>
-    Server: <input type="textbox" id="servername" value="localhost" />
-    Port: <input type="textbox" id="port" value="3000" />
     <input type="button" value="connect" id="connect" />
     <div id="content" class="tabs-bottom">
       <ul>
