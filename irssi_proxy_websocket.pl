@@ -23,10 +23,11 @@ use File::Spec;
 app->log->level('fatal');
 app->static->root(File::Spec->catdir(dirname(__FILE__), 'client'));
 
-#TODO XXX FIXME this needs to be a setting string
+Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_listenurl', 'http://localhost:3000');
+
 my $daemon = Mojo::Server::Daemon->new(
   app => app,
-  listen => ['https://*:3000:/home/tjfontaine/.irssi/ipw.pem:/home/tjfontaine/.irssi/ipw.pem']
+  listen => [Irssi::settings_get_str('ipw_listenurl')]
 );
 
 #TODO XXX FIXME this creates both the expected listener and a random port WTF
