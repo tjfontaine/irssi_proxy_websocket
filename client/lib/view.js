@@ -25,7 +25,7 @@ View.prototype.find_window = function(index, return_selector) {
 
 View.prototype.add_window = function(name, index) {
   jQuery('#content').tabs('add', '#'+index, name, 0)
-  jQuery('#'+name).addClass('container')
+  jQuery('#'+index).addClass('container')
   var item = jQuery('#tablist li').get(0)
   jQuery(item).data('index', parseInt(index))
   this.sort_windows()
