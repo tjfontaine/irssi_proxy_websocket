@@ -25,7 +25,8 @@
       $('#connect').click(function() {
         $('#connect')[0].disabled = true;
         
-        var loc = window.location.origin.replace(/^http/i, 'ws')
+        var loc = window.location.protocol.replace(/^http/i, 'ws')
+        loc += '//' + window.location.hostname + ':' + window.location.port;
         var ws = new WebSocket(loc)
         var view = new View()
         var handler = new Handler(ws, view);
