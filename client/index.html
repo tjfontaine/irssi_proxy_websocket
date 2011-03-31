@@ -4,6 +4,7 @@
     <meta http-equiv="content-type" content="text/html;charset=utf-8" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.11/jquery-ui.min.js"></script>
+    <script src="lib/util.js"></script>
     <script src="lib/handler.js"></script>
     <script src="lib/view.js"></script>
     <link rel="stylesheet" type="text/css" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.11/themes/smoothness/jquery-ui.css" />
@@ -21,7 +22,6 @@
     </style>
     <script type="text/javascript">
     $(function() {
-      $($('#content li').get(0)).data('index', 0)
       $('#connect').click(function() {
         $('#connect')[0].disabled = true;
         
@@ -37,6 +37,8 @@
               view.clear_window(win)
               handler.getscrollback(win)
               handler.activewindow(win)
+            } else if(win != 0) {
+              alert('No data defined');
             }
             view.current_window = win
           },
@@ -47,6 +49,7 @@
     			.addClass( "ui-corner-bottom" )
         
         ws.onopen = function() {
+          $('#tablist li:eq(0)').data('index', 0)
           view.log('Connected')
           handler.listwindows()
         }
@@ -83,7 +86,7 @@
   <body>
     <input type="button" value="connect" id="connect" />
     <div id="content" class="tabs-bottom">
-      <ul>
+      <ul id="tablist">
         <li><a href="#0">0</a></li>
       </ul>
       <div id="0"></div>

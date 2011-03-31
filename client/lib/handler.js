@@ -15,10 +15,10 @@ Handler.prototype.listwindows = function() {
 
 Handler.prototype.windowlist = function(msg) {
   var self = this;
-  $.each(msg.windows, function(widx, win){
+  for(var i = 0; i < msg.windows.length; i++) {
+    var win = msg.windows[i]
     self.view.add_window(self.view.activity_name(win.window, win.data_level), win.window);
-  })
-  this.view.sort_windows()
+  }
 }
 
 Handler.prototype.getscrollback = function(win) {
