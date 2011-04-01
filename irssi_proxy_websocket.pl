@@ -3,15 +3,10 @@
 use strict;
 use vars qw($VERSION %IRSSI);
 
-use IO::Socket::SSL;
-use IO::Socket::INET;
-use Errno;
-
 use Irssi;
 use Irssi::TextUI;
 
 use JSON;
-use Data::Dumper;
 
 use Mojolicious::Lite;
 use Mojo::Server::Daemon;
@@ -19,17 +14,73 @@ use Mojo::Server::Daemon;
 use File::Basename 'dirname';
 use File::Spec;
 
+use Data::UUID::LibUUID;
+use MIME::Base64 qw(encode_base64);
+use MIME::Lite;
+
+$VERSION = '0.0.1';
+%IRSSI = (
+  authors => 'Timothy J Fontaine',
+  contact => 'tjfontaine@gmail.com',
+  name    => 'irssi_proxy_websocket',
+  license => 'MIT/X11',
+  description => 'Proxy module that listens on a WebSocket',
+);
+
+Irssi::theme_register([
+ 'irssi_proxy_websocket',
+ '{line_start}{hilight ' . $IRSSI{'name'} . ':} $0'
+]);
+
 $ENV{MOJO_REUSE} = 1;
 
 # Mojo likes to spew, this makes irssi mostly unsuable
 app->log->level('fatal');
 app->static->root(File::Spec->catdir(dirname(__FILE__), 'client'));
 
-Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_listenurl', 'http://localhost:3000');
+Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_host', 'localhost');
+Irssi::settings_add_int('irssi_proxy_websocket', 'ipw_port', 3000);
+Irssi::settings_add_bool('irssi_proxy_websocket', 'ipw_ssl', 0);
+Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_cert', '');
+Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_key', '');
+Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_pkcs12', '');
+
+sub setup_changed {
+  my ($host, $port, $ssl, $cert, $key, $pkcs);
+  $host = Irssi::settings_get_str('ipw_host');
+  $port = Irssi::settings_get_int('ipw_port');
+  $ssl  = Irssi::settings_get_bool('ipw_ssl');
+  $cert = Irssi::settings_get_str('ipw_cert');
+  $key  = Irssi::settings_get_str('ipw_key');
+  $pkcs = Irssi::settings_get_str('ipw_pkcs12');
+
+  if(length($cert) && !-e $cert) {
+    logmsg("Certificate file doesn't exist: $cert");
+  }
+  if(length($key) && !-e $key) {
+    logmsg("Key file doesn't exist: $key");
+  }
+  if(length($pkcs) && !-e $pkcs) {
+    logmsg("PKCS12 file doesn't exist: $pkcs");
+  }
+};
+
+my $listen_url;
+
+my $host = Irssi::settings_get_str('ipw_host');
+my $port = Irssi::settings_get_int('ipw_port');
+my $cert = Irssi::settings_get_str('ipw_cert');
+my $key  = Irssi::settings_get_str('ipw_key');
+
+if(!Irssi::settings_get_bool('ipw_ssl') && -e $cert && -e $key) {
+  $listen_url = sprintf("https://%s:%d:%s:%s", $host, $port, $cert, $key);
+} else {
+  $listen_url = sprintf("http://%s:%d", $host, $port);
+}
 
 my $daemon = Mojo::Server::Daemon->new(
   app => app,
-  listen => [Irssi::settings_get_str('ipw_listenurl')]
+  listen => [$listen_url],
 );
 
 #TODO XXX FIXME mojo creates a random port for some ioloop operations
@@ -46,20 +97,6 @@ my $loop_id = Irssi::timeout_add(100, \&ws_loop, 0);
 
 my $json = JSON->new->allow_nonref;
 $json->allow_blessed(1);
-
-$VERSION = '0.0.1';
-%IRSSI = (
-  authors => 'Timothy J Fontaine',
-  contact => 'tjfontaine@gmail.com',
-  name    => 'irssi_proxy_websocket',
-  license => 'MIT/X11',
-  description => 'Proxy module that listens on a WebSocket',
-);
-
-Irssi::theme_register([
- 'irssi_proxy_websocket',
- '{line_start}{hilight ' . $IRSSI{'name'} . ':} $0'
-]);
 
 my %clients = ();
 
@@ -86,6 +123,98 @@ websocket '/' => sub {
 get '/' => sub {
   my $client = shift;
   $client->render_static('index.html');
+};
+
+get '/mobileconfig' => sub {
+  my $client = shift;
+  unless(-e Irssi::settings_get_str('ipw_pkcs12')) {
+    return $client->render_text("/SET ipw_pkcs12 /path/to/certificate/in/pkcs12/ipw.p12");
+  }
+  $client->render_static('mobileconfig.html');
+};
+
+post '/mobileconfig' => sub {
+  my $client = shift;
+
+  unless(-e Irssi::settings_get_str('ipw_pkcs12')) {
+    $client->redirect_to('/');
+  }
+
+  open PKCS12, Irssi::settings_get_str('ipw_pkcs12');
+  local($/);
+  my $base64 = encode_base64(<PKCS12>);
+  close PKCS12;
+
+  my $mcxml = <<"__EOI__";
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadCertificateFileName</key>
+      <string>ipw.p12</string>
+      <key>PayloadContent</key>
+      <data>%s</data>
+      <key>PayloadDescription</key>
+      <string>Provides device authentication (certificate or identity).</string>
+      <key>PayloadDisplayName</key>
+      <string>ipw.p12</string>
+      <key>PayloadIdentifier</key>
+      <string>com.atxconsulting.irssi_proxy_websocket.credential</string>
+      <key>PayloadOrganization</key>
+      <string>Ataraxia Consulting</string>
+      <key>PayloadType</key>
+      <string>com.apple.security.pkcs12</string>
+      <key>PayloadUUID</key>
+      <string>%s</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>Certificate for Irssi Proxy Websocket</string>
+  <key>PayloadDisplayName</key>
+  <string>Irssi Proxy Websocket</string>
+  <key>PayloadIdentifier</key>
+  <string>com.atxconsulting.irssi_proxy_websocket</string>
+  <key>PayloadOrganization</key>
+  <string>Ataraxia Consulting</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>%s</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+__EOI__
+
+  my $msg = MIME::Lite->new(
+    From    => $client->param('from'),
+    To      => $client->param('to'),
+    Subject => 'Irssi Proxy Websocket Mobileconfig',
+    Type    => 'multipart/mixed',
+  );
+  
+  $msg->attach(
+    Type     => 'TEXT',
+    Data     => "This is the mobile config for ios devices, you must open on such a device",
+  );
+
+  $msg->attach(
+    Type        => 'text/xml',
+    Data        => sprintf($mcxml, $base64, new_uuid_string(), new_uuid_string()),
+    Filename    => 'ipw.mobileconfig',
+    Encoding    => 'base64',
+    Disposition => 'attachment',
+  );
+
+  $msg->send;
+  $client->redirect_to('/');
 };
 
 sub sendto_client {
@@ -245,6 +374,8 @@ Irssi::signal_add("gui print text finished", "gui_print_text_finished");
 Irssi::signal_add("window created", "window_created");
 Irssi::signal_add("window destroyed", "window_destroyed");
 Irssi::signal_add("window activity", "window_activity");
+
+Irssi::signal_add("setup changed", "setup_changed");
 
 sub UNLOAD {
   Irssi::timeout_remove($loop_id);
