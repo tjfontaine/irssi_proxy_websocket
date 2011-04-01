@@ -44,12 +44,10 @@ Irssi::settings_add_bool('irssi_proxy_websocket', 'ipw_ssl', 0);
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_cert', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_key', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_pkcs12', '');
+Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_password', '');
 
 sub setup_changed {
-  my ($host, $port, $ssl, $cert, $key, $pkcs);
-  $host = Irssi::settings_get_str('ipw_host');
-  $port = Irssi::settings_get_int('ipw_port');
-  $ssl  = Irssi::settings_get_bool('ipw_ssl');
+  my ($cert, $key, $pkcs);
   $cert = Irssi::settings_get_str('ipw_cert');
   $key  = Irssi::settings_get_str('ipw_key');
   $pkcs = Irssi::settings_get_str('ipw_pkcs12');
@@ -72,7 +70,7 @@ my $port = Irssi::settings_get_int('ipw_port');
 my $cert = Irssi::settings_get_str('ipw_cert');
 my $key  = Irssi::settings_get_str('ipw_key');
 
-if(!Irssi::settings_get_bool('ipw_ssl') && -e $cert && -e $key) {
+if(Irssi::settings_get_bool('ipw_ssl') && -e $cert && -e $key) {
   $listen_url = sprintf("https://%s:%d:%s:%s", $host, $port, $cert, $key);
 } else {
   $listen_url = sprintf("http://%s:%d", $host, $port);
@@ -112,6 +110,7 @@ websocket '/' => sub {
     client => $client,
     activewindow => 0,
     color => 0,
+    authenticated => 0,
   };
   $client->on_message(\&parse_msg);
   $client->on_finish(sub {
@@ -219,8 +218,9 @@ __EOI__
 
 sub sendto_client {
   my ($client, $msg) = @_;
-  $msg = $json->encode($msg);
-  $client->send_message($msg);
+  if($clients{$client}->{'authenticated'}) {
+    $client->send_message($json->encode($msg));
+  }
 }
 
 sub sendto_all_clients {
@@ -250,6 +250,8 @@ sub parse_msg {
     getscrollback($client, $command);
   } elsif ($command->{'event'} eq 'activewindow') {
     activewindow($client, $command);
+  } elsif ($command->{'event'} eq 'authenticate') {
+    authenticate($client, $command);
   } else {
     logmsg($command->{'event'});
   }
@@ -335,6 +337,18 @@ sub gui_print_text_finished {
         line => $line,
       });
     }
+  }
+}
+
+sub authenticate {
+  my ($client, $event) = @_;
+  my $chash = $clients{$client};
+
+  if ($event->{'password'} eq Irssi::settings_get_str('ipw_password')) {
+    $chash->{'authenticated'} = 1;
+    sendto_client($chash->{'client'}, {
+      event => 'authenticated',
+    });
   }
 }
 

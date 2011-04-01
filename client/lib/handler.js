@@ -7,6 +7,17 @@ Handler.prototype.trigger = function(msg) {
   this.ws.send(JSON.stringify(msg))
 }
 
+Handler.prototype.authenticate = function(password) {
+  this.trigger({
+    event: 'authenticate',
+    password: password,
+  })
+}
+
+Handler.prototype.authenticated = function(msg) {
+  this.listwindows()
+}
+
 Handler.prototype.listwindows = function() {
   this.trigger({
     event: 'listwindows',

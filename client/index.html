@@ -23,13 +23,18 @@
     <script type="text/javascript">
     $(function() {
       $('#connect').click(function() {
-        $('#connect')[0].disabled = true;
+        $('#passdiv').hide('fast')
+        $('#discodiv').show('fast')
         
         var loc = window.location.protocol.replace(/^http/i, 'ws')
         loc += '//' + window.location.hostname + ':' + window.location.port;
         var ws = new WebSocket(loc)
         var view = new View()
         var handler = new Handler(ws, view);
+
+        $('#disconnect').click(function() {
+          ws.close();
+        });
         
         $('#content').tabs({
           select: function(event, ui) {
@@ -52,7 +57,7 @@
         ws.onopen = function() {
           $('#tablist li:eq(0)').data('index', 0)
           view.log('Connected')
-          handler.listwindows()
+          handler.authenticate($('#password').val())
         }
 
         ws.onmessage = function(msg) {
@@ -70,7 +75,8 @@
 
         ws.onclose = function() {
           view.log('Closed')
-          $('#connect')[0].disabled = false;
+          $('#discodiv').hide('fast')
+          $('#passdiv').show('fast')
         }
 
         $('#command').keyup(function(e) {
@@ -85,7 +91,13 @@
     </script>
   </head>
   <body>
-    <input type="button" value="connect" id="connect" />
+    <div id="passdiv">
+      Password <input type="password" id="password" />
+      <input type="button" value="connect" id="connect" />
+    </div>
+    <div id="discodiv" style="display:none">
+      <input type="button" value="disconnect" id="disconnect" />
+    </div>
     <div id="content" class="tabs-bottom">
       <ul id="tablist">
         <li><a href="#0">0</a></li>
