@@ -6,16 +6,24 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.11/jquery-ui.min.js"></script>
     <script src="lib/util.js"></script>
     <script src="lib/handler.js"></script>
+    <script src="lib/parse_color.js"></script>
     <script src="lib/view.js"></script>
     <link rel="stylesheet" type="text/css" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.11/themes/smoothness/jquery-ui.css" />
+    <link rel="stylesheet" type="text/css" href="css/theme.default.css" />
     <style>
       .container {
         font-family: monospace;
         overflow: auto;
         white-space: pre-wrap;
+        color: white;
       }
       .tabs-bottom { position: relative; } 
-    	.tabs-bottom .ui-tabs-panel { height: 75%; overflow: auto; margin-bottom: 40; } 
+    	.tabs-bottom .ui-tabs-panel {
+        height: 75%;
+        overflow: auto;
+        margin-bottom: 40;
+        background-color: black;
+      } 
     	.tabs-bottom .ui-tabs-nav { position: absolute !important; left: 0; bottom: 0; right:0; padding: 0 0.2em 0.2em 0; } 
     	.tabs-bottom .ui-tabs-nav li { margin-top: -2px !important; margin-bottom: 1px !important; border-top: none; border-bottom-width: 1px; }
     	.ui-tabs-selected { margin-top: -3px !important; }

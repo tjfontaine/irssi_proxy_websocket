@@ -252,6 +252,8 @@ sub parse_msg {
     activewindow($client, $command);
   } elsif ($command->{'event'} eq 'authenticate') {
     authenticate($client, $command);
+  } elsif ($command->{'event'} eq 'configure') {
+    configure($client, $command);
   } else {
     logmsg($command->{'event'});
   }
@@ -349,6 +351,18 @@ sub authenticate {
     sendto_client($chash->{'client'}, {
       event => 'authenticated',
     });
+  }
+}
+
+sub configure {
+  my ($client, $event) = @_;
+  my $chash = $clients{$client};
+
+  for my $key (keys %{$event}) {
+    if($key ne 'event') {
+      logmsg($key . " => " . $event->{$key}); 
+      $chash->{$key} = $event->{$key};
+    }
   }
 }
 

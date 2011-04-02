@@ -70,13 +70,15 @@ View.prototype.activity_name = function(cur, level) {
 
 View.prototype.set_content = function(win, lines) {
   var win_id = this.find_window(win, true)
-  jQuery(win_id).append(escapeHtmlEntities(lines.join('\n'))+'\n')
+  for (var i in lines) {
+    jQuery(win_id).append(ParseColor(lines[i])+'\n')
+  }
   jQuery(win_id).addClass('container')
 }
 
 View.prototype.append_message = function(win, msg) {
   var win_id = this.find_window(win, true)
-  jQuery(win_id).append(escapeHtmlEntities(msg)+'\n')
+  jQuery(win_id).append(ParseColor(msg)+'\n')
   jQuery(win_id).addClass('container')
 }
 

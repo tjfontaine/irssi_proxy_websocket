@@ -1,0 +1,18 @@
+.bold { font-weight: bolder; }
+
+.fgblack { color: Black; }
+.fgdr { color: DarkRed; }
+.fgdg { color: DarkGreen; }
+.fgdy { color: DarkYellow; }
+.fgdb { color: DarkBlue; }
+.fgdm { color: DarkMagenta; }
+.fgdc { color: DarkCyan; }
+.fglgray { color: Gray; }
+.fgdgray { color: DarkGray; }
+.fglr { color: Red; }
+.fglg { color: Green; }
+.fgly { color: Yellow; }
+.fglb { color: Blue; }
+.fglm { color: Magenta; }
+.fglc { color: LightCyan; }
+.fgwhite { color: White; }

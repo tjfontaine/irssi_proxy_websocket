@@ -15,7 +15,15 @@ Handler.prototype.authenticate = function(password) {
 }
 
 Handler.prototype.authenticated = function(msg) {
+  this.configure()
   this.listwindows()
+}
+
+Handler.prototype.configure = function() {
+  this.trigger({
+    event: 'configure',
+    color: true,
+  })
 }
 
 Handler.prototype.listwindows = function() {
@@ -36,7 +44,7 @@ Handler.prototype.getscrollback = function(win) {
   this.trigger({
     event: 'getscrollback',
     window: win,
-    color: false,
+    color: true,
     count: 100,
   })
 }
