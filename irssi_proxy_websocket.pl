@@ -414,13 +414,23 @@ sub window_hilight {
   $wants_hilight_message->{$window->{'refnum'}} = 1;
 }
 
+sub window_refnum_changed {
+  my ($window, $oldnum) = @_;
+
+  sendto_all_clients({
+    event => 'renumber',
+    old => $oldnum,
+    cur => $window->{'refnum'},
+  });
+}
+
 Irssi::signal_add("gui print text finished", "gui_print_text_finished");
 
-# TODO XXX FIXME we still need to handle renumbering
 Irssi::signal_add("window created", "window_created");
 Irssi::signal_add("window destroyed", "window_destroyed");
 Irssi::signal_add("window activity", "window_activity");
 Irssi::signal_add_first("window hilight", "window_hilight");
+Irssi::signal_add("window refnum changed", "window_refnum_changed");
 
 Irssi::signal_add("setup changed", "setup_changed");
 

@@ -96,3 +96,7 @@ Handler.prototype.activity = function(msg) {
 Handler.prototype.hilight = function(msg) {
   this.view.set_notification(msg.window, msg.line)
 }
+
+Handler.prototype.renumber = function(msg) {
+  this.view.renumber(msg.old, msg.cur)
+}

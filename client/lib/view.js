@@ -114,3 +114,17 @@ View.prototype.sort_windows = function(event, ui) {
     }
   }
 }
+
+View.prototype.renumber = function(old, cur) {
+  /* TODO FIXME XXX this mostly works, renaming is still broken slightly */
+  /* need to track active window change as well */
+  var idx = this.find_window(old)
+  var li = jQuery('#tablist li').eq(idx)
+  jQuery(li).data('index', cur)
+  var sel = jQuery(li).children('a').attr('href')
+  jQuery(li).children('a').attr('href', '#'+cur)
+  var cur_text = jQuery(li).children('span').text().replace(old, cur)
+  jQuery(li).children('span').text(cur_text)
+  jQuery(sel).attr('id', cur)
+  this.sort_windows()
+}
