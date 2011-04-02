@@ -51,6 +51,10 @@ View.prototype.set_window_activity = function(win, level) {
   }
 }
 
+View.prototype.set_notification = function (win, line) {
+  /* This is a hilight check if we can notify somewhere */
+}
+
 View.prototype.activity_name = function(cur, level) {
   switch(level) {
     case 0:

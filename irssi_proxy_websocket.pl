@@ -317,6 +317,8 @@ sub getscrollback {
   });
 }
 
+my $wants_hilight_message = {};
+
 sub gui_print_text_finished {
   my ($window) = @_;
   my $ref = $window->{'refnum'}; 
@@ -324,21 +326,31 @@ sub gui_print_text_finished {
   my $plain_line = $window->view->{buffer}->{cur_line}->get_text(0);
 
   while (my ($client, $chash) = each %clients) {
+    my $line = $plain_line;
+
+    if($chash->{'color'}) {
+      $line = $color_line;
+    }
+  
+    if ($wants_hilight_message->{$ref}) {
+      sendto_client($chash->{'client'}, {
+        event => 'hilight',
+        window => $ref,
+        line => $line,
+      });
+    }
+
     if ($chash->{'activewindow'} == int($ref)) {
-      my $line;
-
-      if($chash->{'color'}) {
-        $line = $color_line;
-      } else {
-        $line = $plain_line;
-      }
-
       sendto_client($chash->{'client'}, {
         event => 'addline',
         window => $ref,
         line => $line,
       });
     }
+  }
+
+  if ($watns_hilight_message->{$ref}) {
+    delete $wants_hilight_message->{$ref};
   }
 }
 
@@ -388,12 +400,19 @@ sub window_destroyed {
 sub window_activity {
   my ($window, $oldlevel) = @_;
 
-  sendto_all_clients({
-    event => 'activity',
-    window => "$window->{'refnum'}",
-    level => $window->{data_level},
-    oldlevel => $oldlevel,
-  });
+  while (my ($client, $chash) = each %clients) {
+    sendto_client($chash->{'client'}, {
+      event => 'activity',
+      window => "$window->{'refnum'}",
+      level => $window->{data_level},
+      oldlevel => $oldlevel,
+    });
+  }
+}
+
+sub window_hilight {
+  my $window = shift;
+  $wants_hilight_message->{$window->{'refnum'}} = 1;
 }
 
 Irssi::signal_add("gui print text finished", "gui_print_text_finished");
@@ -402,6 +421,7 @@ Irssi::signal_add("gui print text finished", "gui_print_text_finished");
 Irssi::signal_add("window created", "window_created");
 Irssi::signal_add("window destroyed", "window_destroyed");
 Irssi::signal_add("window activity", "window_activity");
+Irssi::signal_add_first("window hilight", "window_hilight");
 
 Irssi::signal_add("setup changed", "setup_changed");
 

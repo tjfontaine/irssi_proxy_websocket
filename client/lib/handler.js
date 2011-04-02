@@ -92,3 +92,7 @@ Handler.prototype.sendcommand = function(win, msg) {
 Handler.prototype.activity = function(msg) {
   this.view.set_window_activity(msg.window, msg.level)
 }
+
+Handler.prototype.hilight = function(msg) {
+  this.view.set_notification(msg.window, msg.line)
+}
