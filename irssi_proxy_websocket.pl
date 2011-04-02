@@ -349,7 +349,7 @@ sub gui_print_text_finished {
     }
   }
 
-  if ($watns_hilight_message->{$ref}) {
+  if ($wants_hilight_message->{$ref}) {
     delete $wants_hilight_message->{$ref};
   }
 }
