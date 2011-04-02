@@ -372,7 +372,6 @@ sub configure {
 
   for my $key (keys %{$event}) {
     if($key ne 'event') {
-      logmsg($key . " => " . $event->{$key}); 
       $chash->{$key} = $event->{$key};
     }
   }
