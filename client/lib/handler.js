@@ -36,7 +36,7 @@ Handler.prototype.windowlist = function(msg) {
   var self = this;
   for(var i = 0; i < msg.windows.length; i++) {
     var win = msg.windows[i]
-    self.view.add_window(self.view.activity_name(win.window, win.data_level), win.window);
+    self.view.add_window(win.window, win.window, win.data_level);
   }
 }
 

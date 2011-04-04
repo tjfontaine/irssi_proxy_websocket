@@ -23,11 +23,17 @@ View.prototype.find_window = function(index, return_selector) {
   }
 }
 
-View.prototype.add_window = function(name, index) {
-  jQuery('#content').tabs('add', '#'+index, name, 0)
+View.prototype.add_window = function(name, index, level) {
+  if (!level) {
+    level = 0;
+  }
+  jQuery('#content').tabs('add', '#'+index, this.activity_name(name, level), 0)
   jQuery('#'+index).addClass('container')
   var item = jQuery('#tablist li').get(0)
+
   jQuery(item).data('index', parseInt(index))
+  jQuery(item).data('level', parseInt(level))
+
   this.sort_windows()
 }
 
@@ -41,14 +47,16 @@ View.prototype.set_window_activity = function(win, level) {
   win = parseInt(win)
   if(win != this.current_window || level == 0) {
     var idx = this.find_window(win)
-    var li = jQuery('#tablist li:eq('+idx+') span')
-    var cur = parseInt(li.text().replace(/[*!+]/, ''))
-    
-    if(cur == win){
-      cur = this.activity_name(cur, level)
-      li.text(cur)
-    }
+    var li = jQuery('#tablist li').eq(idx)
+    jQuery(li).data('level', level)
+    this.rename_window(li)
   }
+}
+
+View.prototype.rename_window = function(li) {
+  var level = jQuery(li).data('level')
+  var winid = jQuery(li).data('index')
+  jQuery(li).children('a').text(this.activity_name(winid, level))
 }
 
 View.prototype.set_notification = function (win, line) {
@@ -116,15 +124,19 @@ View.prototype.sort_windows = function(event, ui) {
 }
 
 View.prototype.renumber = function(old, cur) {
-  /* TODO FIXME XXX this mostly works, renaming is still broken slightly */
-  /* need to track active window change as well */
   var idx = this.find_window(old)
   var li = jQuery('#tablist li').eq(idx)
   jQuery(li).data('index', cur)
   var sel = jQuery(li).children('a').attr('href')
   jQuery(li).children('a').attr('href', '#'+cur)
-  var cur_text = jQuery(li).children('span').text().replace(old, cur)
-  jQuery(li).children('span').text(cur_text)
   jQuery(sel).attr('id', cur)
+
+  this.rename_window(li)
   this.sort_windows()
+
+  if (old == this.current_window) {
+    this.current_window = cur
+    idx = this.find_window(this.current_window)
+    jQuery('#content').tabs('select', idx)
+  }
 }
