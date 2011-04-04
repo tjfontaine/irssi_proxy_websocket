@@ -140,3 +140,48 @@ View.prototype.renumber = function(old, cur) {
     jQuery('#content').tabs('select', idx)
   }
 }
+
+View.prototype.hook_events = function() {
+  jQuery(document).keydown(function (e) {
+    if (e.altKey) {
+      var w = undefined;
+      switch(e.keyCode) {
+        case 48:
+        case 49:
+        case 50:
+        case 51:
+        case 52:
+        case 53:
+        case 54:
+        case 55:
+        case 56:
+        case 57:
+          w = e.keyCode-48
+          if(w == 0) { w = 10 }
+          break;
+        case 81:
+          w = 11
+          break;
+        case 88:
+          w = 12;
+          break;
+        case 69:
+          w = 13
+          break;
+        case 82:
+          w = 14
+          break;
+        case 84:
+          w = 15
+          break;
+        case 89:
+          w = 16
+          break;
+      }
+
+      if (w) {
+        jQuery('#content').tabs('select', w)
+      }
+    }
+  })
+}

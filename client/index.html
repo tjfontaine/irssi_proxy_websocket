@@ -66,6 +66,7 @@
           $('#tablist li:eq(0)').data('index', 0)
           view.log('Connected')
           handler.authenticate($('#password').val())
+          view.hook_events()
         }
 
         ws.onmessage = function(msg) {
