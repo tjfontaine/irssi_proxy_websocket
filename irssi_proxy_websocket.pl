@@ -32,12 +32,6 @@ Irssi::theme_register([
  '{line_start}{hilight ' . $IRSSI{'name'} . ':} $0'
 ]);
 
-$ENV{MOJO_REUSE} = 1;
-
-# Mojo likes to spew, this makes irssi mostly unsuable
-app->log->level('fatal');
-app->static->root(File::Spec->catdir(dirname(__FILE__), 'client'));
-
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_host', 'localhost');
 Irssi::settings_add_int('irssi_proxy_websocket', 'ipw_port', 3000);
 Irssi::settings_add_bool('irssi_proxy_websocket', 'ipw_ssl', 0);
@@ -45,6 +39,44 @@ Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_cert', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_key', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_pkcs12', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_password', '');
+
+my $daemon;
+my $loop_id;
+
+sub mojoify {
+  $ENV{MOJO_REUSE} = 1;
+
+  # Mojo likes to spew, this makes irssi mostly unsuable
+  app->log->level('fatal');
+
+  # TODO XXX FIXME this should be a setting
+  app->static->root(File::Spec->catdir(dirname(__FILE__), 'client'));
+  my $listen_url;
+
+  my $host = Irssi::settings_get_str('ipw_host');
+  my $port = Irssi::settings_get_int('ipw_port');
+  my $cert = Irssi::settings_get_str('ipw_cert');
+  my $key  = Irssi::settings_get_str('ipw_key');
+
+  if(Irssi::settings_get_bool('ipw_ssl') && -e $cert && -e $key) {
+    $listen_url = sprintf("https://%s:%d:%s:%s", $host, $port, $cert, $key);
+  } else {
+    $listen_url = sprintf("http://%s:%d", $host, $port);
+  }
+
+  $daemon = Mojo::Server::Daemon->new(app => app);
+  $daemon->listen([$listen_url]);
+
+  # TODO XXX FIXME mojo creates a random port for some ioloop operations
+  # this is bound to make people angry who don't understand why
+  $daemon->prepare_ioloop;
+
+  #TODO XXX FIXME we may be able to up this to 1000 or higher if abuse
+  # mojo ->{handle} into the input_add system
+  $loop_id = Irssi::timeout_add(100, \&ws_loop, 0);
+}
+
+mojoify();
 
 sub setup_changed {
   my ($cert, $key, $pkcs);
@@ -61,37 +93,17 @@ sub setup_changed {
   if(length($pkcs) && !-e $pkcs) {
     logmsg("PKCS12 file doesn't exist: $pkcs");
   }
+
+  # TODO XXX FIXME
+  # we should probably check that it was us that changed
+  mojoify();
 };
 
-my $listen_url;
-
-my $host = Irssi::settings_get_str('ipw_host');
-my $port = Irssi::settings_get_int('ipw_port');
-my $cert = Irssi::settings_get_str('ipw_cert');
-my $key  = Irssi::settings_get_str('ipw_key');
-
-if(Irssi::settings_get_bool('ipw_ssl') && -e $cert && -e $key) {
-  $listen_url = sprintf("https://%s:%d:%s:%s", $host, $port, $cert, $key);
-} else {
-  $listen_url = sprintf("http://%s:%d", $host, $port);
-}
-
-my $daemon = Mojo::Server::Daemon->new(
-  app => app,
-  listen => [$listen_url],
-);
-
-#TODO XXX FIXME mojo creates a random port for some ioloop operations
-# this is bound to make people angry who don't understand why
-$daemon->prepare_ioloop;
-
 sub ws_loop {
-  $daemon->ioloop->one_tick;
+  if($daemon) {
+    $daemon->ioloop->one_tick;
+  }
 }
-
-#TODO XXX FIXME we may be able to up this to 1000 or higher if abuse
-# mojo ->{handle} into the input_add system
-my $loop_id = Irssi::timeout_add(100, \&ws_loop, 0);
 
 my $json = JSON->new->allow_nonref;
 $json->allow_blessed(1);
