@@ -34,10 +34,17 @@ Handler.prototype.listwindows = function() {
 
 Handler.prototype.windowlist = function(msg) {
   var self = this;
+  var active = 0;
   for(var i = 0; i < msg.windows.length; i++) {
     var win = msg.windows[i]
-    self.view.add_window(win.window, win.window, win.data_level);
+
+    if (win.active) {
+      active = win.window
+    }
+
+    self.view.add_window(win.window, win.window, win.data_level, win.items);
   }
+  self.view.activate_window(active)
 }
 
 Handler.prototype.getscrollback = function(win) {
@@ -63,8 +70,10 @@ Handler.prototype.activewindow = function(win) {
 }
 
 Handler.prototype.addline = function(msg) {
-  this.view.append_message(msg.window, msg.line);
-  this.view.scroll_to_bottom(msg.window)
+  if (msg.window == this.view.current_window) {
+    this.view.append_message(msg.window, msg.line);
+    this.view.scroll_to_bottom(msg.window)
+  }
 }
 
 Handler.prototype.addwindow = function(msg) {

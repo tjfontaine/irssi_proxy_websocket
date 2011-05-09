@@ -37,7 +37,6 @@ Irssi::settings_add_int('irssi_proxy_websocket', 'ipw_port', 3000);
 Irssi::settings_add_bool('irssi_proxy_websocket', 'ipw_ssl', 0);
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_cert', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_key', '');
-Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_pkcs12', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_password', '');
 
 my $daemon;
@@ -79,19 +78,15 @@ sub mojoify {
 mojoify();
 
 sub setup_changed {
-  my ($cert, $key, $pkcs);
+  my ($cert, $key);
   $cert = Irssi::settings_get_str('ipw_cert');
   $key  = Irssi::settings_get_str('ipw_key');
-  $pkcs = Irssi::settings_get_str('ipw_pkcs12');
 
   if(length($cert) && !-e $cert) {
     logmsg("Certificate file doesn't exist: $cert");
   }
   if(length($key) && !-e $key) {
     logmsg("Key file doesn't exist: $key");
-  }
-  if(length($pkcs) && !-e $pkcs) {
-    logmsg("PKCS12 file doesn't exist: $pkcs");
   }
 
   # TODO XXX FIXME
@@ -120,7 +115,6 @@ websocket '/' => sub {
   logmsg("Client Connected From: " . $client->tx->remote_address);
   $clients{$client} = {
     client => $client,
-    activewindow => 0,
     color => 0,
     authenticated => 0,
   };
@@ -134,98 +128,6 @@ websocket '/' => sub {
 get '/' => sub {
   my $client = shift;
   $client->render_static('index.html');
-};
-
-get '/mobileconfig' => sub {
-  my $client = shift;
-  unless(-e Irssi::settings_get_str('ipw_pkcs12')) {
-    return $client->render_text("/SET ipw_pkcs12 /path/to/certificate/in/pkcs12/ipw.p12");
-  }
-  $client->render_static('mobileconfig.html');
-};
-
-post '/mobileconfig' => sub {
-  my $client = shift;
-
-  unless(-e Irssi::settings_get_str('ipw_pkcs12')) {
-    $client->redirect_to('/');
-  }
-
-  open PKCS12, Irssi::settings_get_str('ipw_pkcs12');
-  local($/);
-  my $base64 = encode_base64(<PKCS12>);
-  close PKCS12;
-
-  my $mcxml = <<"__EOI__";
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>PayloadContent</key>
-  <array>
-    <dict>
-      <key>PayloadCertificateFileName</key>
-      <string>ipw.p12</string>
-      <key>PayloadContent</key>
-      <data>%s</data>
-      <key>PayloadDescription</key>
-      <string>Provides device authentication (certificate or identity).</string>
-      <key>PayloadDisplayName</key>
-      <string>ipw.p12</string>
-      <key>PayloadIdentifier</key>
-      <string>com.atxconsulting.irssi_proxy_websocket.credential</string>
-      <key>PayloadOrganization</key>
-      <string>Ataraxia Consulting</string>
-      <key>PayloadType</key>
-      <string>com.apple.security.pkcs12</string>
-      <key>PayloadUUID</key>
-      <string>%s</string>
-      <key>PayloadVersion</key>
-      <integer>1</integer>
-    </dict>
-  </array>
-  <key>PayloadDescription</key>
-  <string>Certificate for Irssi Proxy Websocket</string>
-  <key>PayloadDisplayName</key>
-  <string>Irssi Proxy Websocket</string>
-  <key>PayloadIdentifier</key>
-  <string>com.atxconsulting.irssi_proxy_websocket</string>
-  <key>PayloadOrganization</key>
-  <string>Ataraxia Consulting</string>
-  <key>PayloadRemovalDisallowed</key>
-  <false/>
-  <key>PayloadType</key>
-  <string>Configuration</string>
-  <key>PayloadUUID</key>
-  <string>%s</string>
-  <key>PayloadVersion</key>
-  <integer>1</integer>
-</dict>
-</plist>
-__EOI__
-
-  my $msg = MIME::Lite->new(
-    From    => $client->param('from'),
-    To      => $client->param('to'),
-    Subject => 'Irssi Proxy Websocket Mobileconfig',
-    Type    => 'multipart/mixed',
-  );
-  
-  $msg->attach(
-    Type     => 'TEXT',
-    Data     => "This is the mobile config for ios devices, you must open on such a device",
-  );
-
-  $msg->attach(
-    Type        => 'text/xml',
-    Data        => sprintf($mcxml, $base64, new_uuid_string(), new_uuid_string()),
-    Filename    => 'ipw.mobileconfig',
-    Encoding    => 'base64',
-    Disposition => 'attachment',
-  );
-
-  $msg->send;
-  $client->redirect_to('/');
 };
 
 sub sendto_client {
@@ -275,20 +177,22 @@ sub activewindow {
   my ($client, $event) = @_;
   my $window = Irssi::window_find_refnum(int($event->{'window'}));
   $window->set_active();
-  $clients{$client}->{'activewindow'} = int($event->{'window'});
 }
 
 sub listwindows {
   my ($client, $event) = @_;
   
+  my $active_window = Irssi::active_win()->{'refnum'};
+
   my @windows = ();
   foreach my $window (Irssi::windows()) {
     my @items = ();
     my $entry = {
-      'window' => "$window->{'refnum'}",
-      'name' => $window->{'name'},
-      'items' => \@items,
-      'data_level' => $window->{data_level},
+      window => "$window->{'refnum'}",
+      name => $window->{name},
+      items => \@items,
+      data_level => $window->{data_level},
+      active => $active_window == $window->{refnum} ? 1 : 0,
     };
 
     for my $item ($window->items) {
@@ -352,13 +256,11 @@ sub gui_print_text_finished {
       });
     }
 
-    if ($chash->{'activewindow'} == int($ref)) {
-      sendto_client($chash->{'client'}, {
-        event => 'addline',
-        window => $ref,
-        line => $line,
-      });
-    }
+    sendto_client($chash->{'client'}, {
+      event => 'addline',
+      window => $ref,
+      line => $line,
+    });
   }
 
   if ($wants_hilight_message->{$ref}) {

@@ -137,8 +137,12 @@ View.prototype.renumber = function(old, cur) {
   if (old == this.current_window) {
     this.current_window = cur
     idx = this.find_window(this.current_window)
-    jQuery('#content').tabs('select', idx)
+    this.activate_window(idx)
   }
+}
+
+View.prototype.activate_window = function(index) {
+  jQuery('#content').tabs('select', index);
 }
 
 View.prototype.hook_events = function() {
