@@ -47,14 +47,15 @@
         $('#content').tabs({
           select: function(event, ui) {
             var win = $(ui.tab).parent().data('index')
+            view.current_window = win
             if(win > 0) {
               view.clear_window(win)
               handler.getscrollback(win)
               handler.activewindow(win)
+              view.load_items(win)
             } else if(win != 0) {
               alert('No data defined');
             }
-            view.current_window = win
           },
         })
         
@@ -95,6 +96,11 @@
             $('#command').eq(0).val('')
           }
         })
+
+        $('#window_item').change(function() {
+          handler.activeitem(view.current_window, $(this).val())
+          handler.listitems(view.current_window)
+        })
       })
     });
     </script>
@@ -114,6 +120,8 @@
       <div id="0"></div>
     </div>
     <br/>
-    Command: <input type="textbox" id="command" size="100%" maxlength="510" />
+    <select id="window_item">
+    </select>
+    <input type="textbox" id="command" size="100%" maxlength="510" />
   </body>
 </html>

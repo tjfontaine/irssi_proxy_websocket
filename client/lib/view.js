@@ -23,7 +23,7 @@ View.prototype.find_window = function(index, return_selector) {
   }
 }
 
-View.prototype.add_window = function(name, index, level) {
+View.prototype.add_window = function(name, index, level, items) {
   if (!level) {
     level = 0;
   }
@@ -35,6 +35,30 @@ View.prototype.add_window = function(name, index, level) {
   jQuery(item).data('level', parseInt(level))
 
   this.sort_windows()
+
+  this.set_items(index, items)
+}
+
+View.prototype.load_items = function(win) {
+  win = parseInt(win)
+  var idx = this.find_window(win)
+  var li = jQuery('#tablist li').eq(idx)
+  var items = jQuery(li).data('items')
+  jQuery('#window_item > option').remove()
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i]
+    jQuery('#window_item').append(new Option(item.name, item.name, item.active, item.active))
+  }
+}
+
+View.prototype.set_items = function(win, items) {
+  win = parseInt(win)
+  var idx = this.find_window(win)
+  var li = jQuery('#tablist li').eq(idx)
+  jQuery(li).data('items', items)
+  if (win == this.current_window) {
+    this.load_items(win)
+  }
 }
 
 View.prototype.del_window = function(win) {

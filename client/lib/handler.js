@@ -109,3 +109,26 @@ Handler.prototype.hilight = function(msg) {
 Handler.prototype.renumber = function(msg) {
   this.view.renumber(msg.old, msg.cur)
 }
+
+Handler.prototype.activeitem = function(win, item) {
+  if (win > 0) {
+    this.trigger({
+      event: 'activeitem',
+      window: win,
+      name: item,
+    })
+  }
+}
+
+Handler.prototype.listitems = function(win) {
+  if (win > 0) {
+    this.trigger({
+      event: 'listitems',
+      window: win,
+    })
+  }
+}
+
+Handler.prototype.itemlist = function(msg) {
+  this.view.set_items(msg.window, msg.items)
+}

@@ -168,6 +168,10 @@ sub parse_msg {
     authenticate($client, $command);
   } elsif ($command->{'event'} eq 'configure') {
     configure($client, $command);
+  } elsif ($command->{'event'} eq 'activeitem') {
+    activeitem($client, $command);
+  } elsif ($command->{'event'} eq 'listitems') {
+    listitems($client, $command);
   } else {
     logmsg($command->{'event'});
   }
@@ -179,6 +183,41 @@ sub activewindow {
   $window->set_active();
 }
 
+sub activeitem {
+  my ($client, $event) = @_;
+  my $window = Irssi::window_find_refnum(int($event->{'window'}));
+  for my $item ($window->items) {
+    if ($item->{name} eq $event->{'name'}) {
+      $item->set_active();
+      return;
+    }
+  }
+}
+
+sub get_items {
+  my $window = shift;
+  my @items = ();
+  for my $item ($window->items) {
+    push(@items, {
+      name => $item->{name},
+      type => $item->{type},
+      active => $item->is_active,
+    });
+  }
+  return @items;
+}
+
+sub listitems {
+  my ($client, $event) = @_;
+  my $window = Irssi::window_find_refnum(int($event->{'window'}));
+  my @items = get_items($window);
+  sendto_client($client, {
+    event => "itemlist",
+    items => \@items,
+    window => $event->{'window'},
+  });
+}
+
 sub listwindows {
   my ($client, $event) = @_;
   
@@ -186,7 +225,7 @@ sub listwindows {
 
   my @windows = ();
   foreach my $window (Irssi::windows()) {
-    my @items = ();
+    my @items = get_items($window);
     my $entry = {
       window => "$window->{'refnum'}",
       name => $window->{name},
@@ -194,15 +233,7 @@ sub listwindows {
       data_level => $window->{data_level},
       active => $active_window == $window->{refnum} ? 1 : 0,
     };
-
-    for my $item ($window->items) {
-      push(@items, {
-        name => $item->{name},
-        type => $item->{type},
-        active => $item->is_active,
-      });
-    }
-
+    
     push(@windows, $entry);
   }
 
@@ -338,6 +369,16 @@ sub window_refnum_changed {
   });
 }
 
+sub window_item_list {
+  my ($window, $item) = @_;
+  my @items = get_items($window);
+  sendto_all_clients({
+    event => 'itemlist',
+    items => \@items,
+    window => $window->{'refnum'},
+  })
+}
+
 Irssi::signal_add("gui print text finished", "gui_print_text_finished");
 
 Irssi::signal_add("window created", "window_created");
@@ -345,6 +386,9 @@ Irssi::signal_add("window destroyed", "window_destroyed");
 Irssi::signal_add("window activity", "window_activity");
 Irssi::signal_add_first("window hilight", "window_hilight");
 Irssi::signal_add("window refnum changed", "window_refnum_changed");
+Irssi::signal_add("window item new", "window_item_list");
+Irssi::signal_add("window item remove", "window_item_list");
+Irssi::signal_add("window item name changed", "window_item_list");
 
 Irssi::signal_add("setup changed", "setup_changed");
 
