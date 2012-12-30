@@ -38,6 +38,7 @@ Irssi::settings_add_bool('irssi_proxy_websocket', 'ipw_ssl', 0);
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_cert', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_key', '');
 Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_password', '');
+Irssi::settings_add_str('irssi_proxy_websocket', 'ipw_docroot', File::Spec->catdir(dirname(__FILE__), 'client'));
 
 my $daemon;
 my $loop_id;
@@ -48,8 +49,7 @@ sub mojoify {
   # Mojo likes to spew, this makes irssi mostly unsuable
   app->log->level('fatal');
 
-  # TODO XXX FIXME this should be a setting
-  app->static->root(File::Spec->catdir(dirname(__FILE__), 'client'));
+  app->static->paths->[0] = Irssi::settings_get_str('ipw_docroot');
   my $listen_url;
 
   my $host = Irssi::settings_get_str('ipw_host');
@@ -63,12 +63,9 @@ sub mojoify {
     $listen_url = sprintf("http://%s:%d", $host, $port);
   }
 
-  $daemon = Mojo::Server::Daemon->new(app => app);
-  $daemon->listen([$listen_url]);
-
-  # TODO XXX FIXME mojo creates a random port for some ioloop operations
-  # this is bound to make people angry who don't understand why
-  $daemon->prepare_ioloop;
+  logmsg("listen on $listen_url");
+  $daemon = Mojo::Server::Daemon->new(app => app, listen => [$listen_url]);
+  $daemon->start;
 
   #TODO XXX FIXME we may be able to up this to 1000 or higher if abuse
   # mojo ->{handle} into the input_add system
@@ -118,8 +115,8 @@ websocket '/' => sub {
     color => 0,
     authenticated => 0,
   };
-  $client->on_message(\&parse_msg);
-  $client->on_finish(sub {
+  $client->on(message => \&parse_msg);
+  $client->on(finish => sub {
     logmsg("Client From: " . $client->tx->remote_address . " Closed");
     delete $clients{$client};
   });
@@ -133,7 +130,7 @@ get '/' => sub {
 sub sendto_client {
   my ($client, $msg) = @_;
   if($clients{$client}->{'authenticated'}) {
-    $client->send_message($json->encode($msg));
+    $client->send($json->encode($msg));
   }
 }
 

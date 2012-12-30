@@ -122,7 +122,7 @@ ParseColor = function(line) {
         }
       }
     } else {
-      var re = /^(.[^\cB\cC\cD\cF\cO\cV\c[\c_]*)/(line);
+      var re = line.match(/^(.[^\cB\cC\cD\cF\cO\cV\c[\c_]*)/);
       line = line.replace(/^(.[^\cB\cC\cD\cF\cO\cV\c[\c_]*)/, '');
       emit(re[1]);
     }
